@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS `t_ozon_posting` (
+  `id` bigint unsigned NOT NULL,
+  `auth_id` bigint unsigned NOT NULL COMMENT '授权ID',
+  `shop_id` bigint unsigned NOT NULL COMMENT '店铺ID',
+  `posting_number` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT 'Ozon Posting Number',
+  `fulfillment_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '履约类型',
+  `posting_status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '订单状态',
+  `substatus` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '子状态',
+  `warehouse_id` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '仓库ID',
+  `order_created_at` datetime DEFAULT NULL COMMENT '订单创建时间',
+  `shipment_deadline_at` datetime DEFAULT NULL COMMENT '发货截止时间',
+  `customer_payload_json` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin COMMENT '原始Posting载荷',
+  `erp_order_id` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'ERP订单行ID，逗号分隔',
+  `bridge_status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '桥接状态',
+  `sync_version` int NOT NULL DEFAULT '1' COMMENT '同步版本',
+  `create_time` datetime DEFAULT NULL COMMENT '创建时间',
+  `update_time` datetime DEFAULT NULL COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_auth_posting_number` (`auth_id`,`posting_number`),
+  KEY `idx_shop_id` (`shop_id`),
+  KEY `idx_posting_status` (`posting_status`),
+  KEY `idx_bridge_status` (`bridge_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='Ozon Posting同步表';

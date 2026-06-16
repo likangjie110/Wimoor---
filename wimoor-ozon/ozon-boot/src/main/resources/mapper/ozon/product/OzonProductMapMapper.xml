@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wimoor.ozon.product.mapper.OzonProductMapMapper">
+
+    <resultMap id="OzonProductMapResultMap" type="com.wimoor.ozon.product.pojo.entity.OzonProductMap">
+        <id property="id" column="id"/>
+        <result property="authId" column="auth_id"/>
+        <result property="shopId" column="shop_id"/>
+        <result property="materialSku" column="material_sku"/>
+        <result property="materialName" column="material_name"/>
+        <result property="ownerName" column="owner_name"/>
+        <result property="image" column="image"/>
+        <result property="materialPrice" column="material_price"/>
+        <result property="ozonOfferId" column="ozon_offer_id"/>
+        <result property="ozonSku" column="ozon_sku"/>
+        <result property="ozonProductId" column="ozon_product_id"/>
+        <result property="status" column="status"/>
+        <result property="lastSyncStatus" column="last_sync_status"/>
+        <result property="lastSyncMessage" column="last_sync_message"/>
+        <result property="lastSyncTime" column="last_sync_time"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id,
+        auth_id,
+        shop_id,
+        material_sku,
+        material_name,
+        owner_name,
+        image,
+        material_price,
+        ozon_offer_id,
+        ozon_sku,
+        ozon_product_id,
+        status,
+        last_sync_status,
+        last_sync_message,
+        last_sync_time,
+        create_time,
+        update_time
+    </sql>
+
+    <select id="listByAuthId" resultMap="OzonProductMapResultMap">
+        select
+        <include refid="BaseColumns"/>
+        from t_ozon_product_map
+        where auth_id = #{authId}
+        <if test="keyword != null and keyword != ''">
+            and (
+                material_sku like concat('%', #{keyword}, '%')
+                or material_name like concat('%', #{keyword}, '%')
+                or ozon_offer_id like concat('%', #{keyword}, '%')
+            )
+        </if>
+        order by update_time desc, create_time desc
+    </select>
+
+    <select id="selectByAuthIdAndMaterialSku" resultMap="OzonProductMapResultMap">
+        select
+        <include refid="BaseColumns"/>
+        from t_ozon_product_map
+        where auth_id = #{authId}
+          and material_sku = #{materialSku}
+        limit 1
+    </select>
+
+    <select id="listByMaterialSkus" resultMap="OzonProductMapResultMap">
+        select
+        <include refid="BaseColumns"/>
+        from t_ozon_product_map
+        where auth_id = #{authId}
+          and material_sku in
+        <foreach collection="materialSkus" item="sku" open="(" separator="," close=")">
+            #{sku}
+        </foreach>
+    </select>
+</mapper>

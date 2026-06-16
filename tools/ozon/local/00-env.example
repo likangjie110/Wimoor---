@@ -1,0 +1,33 @@
+# Copy this file to .env.local before local use.
+# Do not place real Client ID / API Key in git-tracked files.
+
+MYSQL_HOST=127.0.0.1
+MYSQL_PORT=3306
+MYSQL_USER=wimoor_local
+MYSQL_PASSWORD=change_me
+MYSQL_BOOTSTRAP_SOCKET_USER=root
+
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=change_me
+
+NACOS_SERVER_ADDR=127.0.0.1:8848
+NACOS_NAMESPACE=public
+NACOS_IP=127.0.0.1
+NACOS_USERNAME=
+NACOS_PASSWORD=
+
+LOG_HOME=/tmp/wimoor-logs
+JM_LOG_PATH=/tmp/wimoor-logs/nacos
+JM_SNAPSHOT_PATH=/tmp/wimoor-nacos-snapshot
+LOCAL_USER_ID=local-admin
+LOCAL_COMPANY_ID=company-1
+
+OZON_SECURITY_AES_KEY=change_me_16_or_32_bytes
+OZON_CLIENT_ID=fill_locally
+OZON_API_KEY=fill_locally
+
+AUTH_ID=
+DRAFT_ID=
+WAREHOUSE_ID=
+POSTING_ID=
+ERP_TEST_SKU=ERP-SKU-1

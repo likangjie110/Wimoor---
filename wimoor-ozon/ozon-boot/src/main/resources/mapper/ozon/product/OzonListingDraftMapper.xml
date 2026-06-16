@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wimoor.ozon.product.mapper.OzonListingDraftMapper">
+
+    <select id="selectByAuthIdAndDraftId" resultType="com.wimoor.ozon.product.pojo.entity.OzonListingDraft">
+        select *
+        from t_ozon_listing_draft
+        where auth_id = #{authId}
+          and id = #{draftId}
+        limit 1
+    </select>
+</mapper>

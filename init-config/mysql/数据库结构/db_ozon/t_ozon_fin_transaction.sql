@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS `t_ozon_fin_transaction` (
+  `id` bigint unsigned NOT NULL,
+  `task_id` bigint unsigned NOT NULL COMMENT '导入任务ID',
+  `auth_id` bigint unsigned NOT NULL COMMENT '授权ID',
+  `shop_id` bigint unsigned NOT NULL COMMENT '店铺ID',
+  `report_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '报表ID',
+  `report_date` date DEFAULT NULL COMMENT '报表日期',
+  `transaction_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '交易ID',
+  `operation_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '业务类型',
+  `posting_number` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '订单号',
+  `amount` decimal(18,4) NOT NULL COMMENT '金额',
+  `currency_code` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '币种',
+  `transaction_time` datetime DEFAULT NULL COMMENT '交易时间',
+  `raw_line_json` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin COMMENT '原始行JSON',
+  `create_time` datetime DEFAULT NULL COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_auth_report_id` (`auth_id`,`report_id`),
+  KEY `idx_transaction_id` (`transaction_id`),
+  KEY `idx_report_date` (`report_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='Ozon财务交易明细表';

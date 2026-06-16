@@ -1,0 +1,23 @@
+server:
+  port: 8106
+  servlet:
+    context-path: /ozon
+spring:
+  application:
+    name: wimoor-ozon
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        ip: ${NACOS_IP:127.0.0.1}
+      config:
+        server-addr: ${spring.cloud.nacos.discovery.server-addr}
+        namespace: ${NACOS_NAMESPACE:public}
+        file-extension: yaml
+        shared-configs[0]:
+          data-id: wimoor-common
+          refresh: true
+        shared-configs[1]:
+          data-id: wimoor-commom-ext
+          refresh: true

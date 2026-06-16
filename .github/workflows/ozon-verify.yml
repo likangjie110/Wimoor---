@@ -1,0 +1,153 @@
+name: ozon-verify
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ozon-verify.yml'
+      - 'tools/ozon/local/**'
+      - 'docs/superpowers/verification/**'
+      - 'wimoor-ozon/**'
+      - 'wimoorui/**'
+      - 'pom.xml'
+      - 'wimoor-*/pom.xml'
+  pull_request:
+    paths:
+      - '.github/workflows/ozon-verify.yml'
+      - 'tools/ozon/local/**'
+      - 'docs/superpowers/verification/**'
+      - 'wimoor-ozon/**'
+      - 'wimoorui/**'
+      - 'pom.xml'
+      - 'wimoor-*/pom.xml'
+  workflow_dispatch:
+
+jobs:
+  ozon-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+
+      - name: Run Ozon backend verification
+        run: >
+          mvn
+          -DfailIfNoTests=false
+          -pl wimoor-ozon/ozon-boot
+          -am
+          -Dtest=OzonListingDraftServiceTests,OzonProductMetadataServiceTests,OzonProductPreviewServiceTests,OzonProductPublishServiceTests,OzonProductControllerFeatureTests,OzonAuthServiceTests,OzonWarehouseSyncServiceTests,OzonSellerSettingsServiceTests,OzonPriceSyncServiceTests,OzonStockSyncServiceTests,OzonPostingSyncServiceTests,OzonShipmentServiceTests,OzonAfterSaleServiceTests,OzonFinanceImportTests,OzonChatSyncTests,OzonAdsReportTests,OzonOpsServiceTests,OzonControllerFeatureGateTests,OzonSmokeWorkflowTests
+          test
+
+      - name: Upload backend verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ozon-backend-surefire-reports
+          path: |
+            wimoor-ozon/ozon-boot/target/surefire-reports/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Backend summary
+        if: always()
+        run: |
+          {
+            echo "## Ozon Backend Verification"
+            echo
+            echo "- Java: 8"
+            echo "- Module: wimoor-ozon/ozon-boot"
+            echo "- Artifact: ozon-backend-surefire-reports"
+            echo "- Portal: docs/superpowers/verification/2026-04-11-ozon-verification-portal.md"
+            echo "- Post-Run Checklist: docs/superpowers/verification/2026-04-12-ozon-ci-postrun-checklist.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  ozon-frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: wimoorui
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: wimoorui/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Cache Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('wimoorui/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Ensure Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Ozon route smoke
+        run: node scripts/check_ozon_route_smoke.mjs
+
+      - name: Ozon Playwright regressions
+        run: npm run test:e2e:ozon
+
+      - name: Frontend build
+        run: ./scripts/build_in_linux_fs.sh
+
+      - name: Frontend audit
+        run: |
+          set -o pipefail
+          npm audit --omit=dev | tee audit-report.txt
+
+      - name: Upload frontend verification artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ozon-frontend-artifacts
+          path: |
+            wimoorui/playwright-report/**
+            wimoorui/test-results/**
+            wimoorui/audit-report.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload Ozon verification docs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ozon-verification-docs
+          path: |
+            docs/superpowers/verification/2026-04-11-ozon-*.md
+            docs/superpowers/verification/ozon-*.md
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Frontend summary
+        if: always()
+        run: |
+          {
+            echo "## Ozon Frontend Verification"
+            echo
+            echo "- Node: 20"
+            echo "- Playwright suite: npm run test:e2e:ozon"
+            echo "- Build: ./scripts/build_in_linux_fs.sh"
+            echo "- Audit: npm audit --omit=dev"
+            echo "- Artifact: ozon-frontend-artifacts"
+            echo "- Docs Artifact: ozon-verification-docs"
+            echo "- Portal: docs/superpowers/verification/2026-04-11-ozon-verification-portal.md"
+            echo "- Post-Run Checklist: docs/superpowers/verification/2026-04-12-ozon-ci-postrun-checklist.md"
+          } >> "$GITHUB_STEP_SUMMARY"

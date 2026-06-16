@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS `t_ozon_error_event` (
+  `id` bigint unsigned NOT NULL,
+  `auth_id` bigint unsigned NOT NULL COMMENT '授权ID',
+  `shop_id` bigint unsigned NOT NULL COMMENT '店铺ID',
+  `source_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '错误来源类型',
+  `object_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '对象ID',
+  `object_code` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '对象展示编码',
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT 'OPEN' COMMENT '处理状态',
+  `error_message` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '最新错误消息',
+  `request_payload_json` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin COMMENT '重试请求载荷',
+  `response_payload_json` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin COMMENT '补充上下文载荷',
+  `retry_count` int NOT NULL DEFAULT 0 COMMENT '重试次数',
+  `last_retry_at` datetime DEFAULT NULL COMMENT '最后重试时间',
+  `operator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '最后操作人',
+  `create_time` datetime DEFAULT NULL COMMENT '创建时间',
+  `update_time` datetime DEFAULT NULL COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_auth_source_status` (`auth_id`,`source_type`,`status`),
+  KEY `idx_auth_object` (`auth_id`,`object_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='Ozon对象级错误事件表';

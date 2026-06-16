@@ -1,0 +1,35 @@
+spring:
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    jdbc-url: jdbc:mysql://${mysql.host}:${mysql.port}/db_ozon?allowMultiQueries=true&useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: ${mysql.username}
+    password: ${mysql.password}
+    primary:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+  cloud:
+    loadbalancer:
+      ribbon:
+        enabled: false
+      nacos:
+        enabled: true
+ozon:
+  api:
+    base-url: https://api-seller.ozon.ru
+  security:
+    aes-key: ${OZON_SECURITY_AES_KEY:}
+  feature:
+    auth: true
+    product: true
+    product-write: false
+    task: true
+    error: true
+    finance: true
+    chat: true
+    ads: true
+    stock-write: false
+    price-write: false
+    posting-write: false
+    # Postponed until the official Ozon chat send contract is verified.
+    chat-send: false
+    # Postponed until the official ads sync contract is verified.
+    ads-sync: false

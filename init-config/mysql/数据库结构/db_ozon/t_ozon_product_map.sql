@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS `t_ozon_product_map` (
+  `id` bigint unsigned NOT NULL,
+  `auth_id` bigint unsigned NOT NULL COMMENT '授权ID',
+  `shop_id` bigint unsigned NOT NULL COMMENT '店铺ID',
+  `material_sku` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT 'ERP SKU',
+  `material_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'ERP商品名称',
+  `owner_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '负责人',
+  `image` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '图片链接',
+  `material_price` decimal(18,2) DEFAULT NULL COMMENT 'ERP价格',
+  `ozon_offer_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'Ozon Offer ID',
+  `ozon_sku` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'Ozon SKU',
+  `ozon_product_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'Ozon Product ID',
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT 'DRAFT' COMMENT '映射状态',
+  `last_sync_status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '最近同步状态',
+  `last_sync_message` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '最近同步消息',
+  `last_sync_time` datetime DEFAULT NULL COMMENT '最近同步时间',
+  `create_time` datetime DEFAULT NULL COMMENT '创建时间',
+  `update_time` datetime DEFAULT NULL COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_auth_material_sku` (`auth_id`,`material_sku`),
+  KEY `idx_shop_id` (`shop_id`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='Ozon商品映射表';

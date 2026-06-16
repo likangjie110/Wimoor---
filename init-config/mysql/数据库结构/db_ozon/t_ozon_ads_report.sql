@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS `t_ozon_ads_report` (
+  `id` bigint unsigned NOT NULL,
+  `auth_id` bigint unsigned NOT NULL COMMENT '授权ID',
+  `shop_id` bigint unsigned NOT NULL COMMENT '店铺ID',
+  `account_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '广告账号ID',
+  `campaign_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '活动ID',
+  `report_date` date NOT NULL COMMENT '报表日期',
+  `impressions` bigint DEFAULT 0 COMMENT '曝光',
+  `clicks` bigint DEFAULT 0 COMMENT '点击',
+  `spend` decimal(18,4) DEFAULT 0 COMMENT '花费',
+  `orders` bigint DEFAULT 0 COMMENT '订单数',
+  `sales` decimal(18,4) DEFAULT 0 COMMENT '销售额',
+  `ctr` decimal(18,4) DEFAULT 0 COMMENT '点击率',
+  `cpc` decimal(18,4) DEFAULT 0 COMMENT '单次点击成本',
+  `acos` decimal(18,4) DEFAULT 0 COMMENT 'ACOS',
+  `roas` decimal(18,4) DEFAULT 0 COMMENT 'ROAS',
+  `raw_line_json` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin COMMENT '原始行JSON',
+  `create_time` datetime DEFAULT NULL COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_auth_campaign_date` (`auth_id`,`campaign_id`,`report_date`),
+  KEY `idx_auth_report_date` (`auth_id`,`report_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='Ozon广告日报表';

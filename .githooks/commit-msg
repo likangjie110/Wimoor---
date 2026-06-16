@@ -1,0 +1,16 @@
+#!/bin/sh
+
+msg_file="$1"
+subject="$(sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' "$msg_file" | head -n 1)"
+
+if [ -z "$subject" ]; then
+    exit 0
+fi
+
+if printf '%s' "$subject" | perl -CSDA -ne '$found ||= /\p{Han}/; END { exit($found ? 0 : 1) }'; then
+    exit 0
+fi
+
+echo "提交信息必须使用中文。" >&2
+echo "示例：修复 Ozon 授权同步问题" >&2
+exit 1

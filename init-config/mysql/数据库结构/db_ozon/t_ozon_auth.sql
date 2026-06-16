@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS `t_ozon_auth` (
+  `id` bigint unsigned NOT NULL,
+  `shop_id` bigint unsigned NOT NULL COMMENT '店铺ID',
+  `name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '授权名称',
+  `client_id` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT 'Ozon Client ID',
+  `api_key_ciphertext` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT 'API Key密文',
+  `api_key_fingerprint` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT 'API Key指纹',
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT 'ACTIVE' COMMENT '状态',
+  `disabled` bit(1) DEFAULT b'0' COMMENT '是否停用',
+  `last_sync_status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '最近同步状态',
+  `last_sync_message` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '最近同步消息',
+  `last_sync_time` datetime DEFAULT NULL COMMENT '最近同步时间',
+  `created_by` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '创建人',
+  `updated_by` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '更新人',
+  `create_time` datetime DEFAULT NULL COMMENT '创建时间',
+  `update_time` datetime DEFAULT NULL COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_shop_client` (`shop_id`,`client_id`),
+  KEY `idx_shop_id` (`shop_id`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='Ozon授权表';

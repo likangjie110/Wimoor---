@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wimoor.ozon.product.mapper.OzonListingAttributeMapper">
+
+    <select id="listByDraftIdAndVariantId" resultType="com.wimoor.ozon.product.pojo.entity.OzonListingAttribute">
+        select *
+        from t_ozon_listing_attribute
+        where draft_id = #{draftId}
+        <if test="variantId == null">
+            and variant_id is null
+        </if>
+        <if test="variantId != null">
+            and variant_id = #{variantId}
+        </if>
+        order by create_time asc, id asc
+    </select>
+
+    <delete id="deleteByDraftIdAndVariantId">
+        delete from t_ozon_listing_attribute
+        where draft_id = #{draftId}
+        <if test="variantId == null">
+            and variant_id is null
+        </if>
+        <if test="variantId != null">
+            and variant_id = #{variantId}
+        </if>
+    </delete>
+</mapper>

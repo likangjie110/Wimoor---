@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wimoor.ozon.auth.mapper.OzonAuthMapper">
+
+    <resultMap id="OzonAuthResultMap" type="com.wimoor.ozon.auth.pojo.entity.OzonAuth">
+        <id property="id" column="id"/>
+        <result property="shopId" column="shop_id"/>
+        <result property="name" column="name"/>
+        <result property="clientId" column="client_id"/>
+        <result property="apiKeyCiphertext" column="api_key_ciphertext"/>
+        <result property="apiKeyFingerprint" column="api_key_fingerprint"/>
+        <result property="status" column="status"/>
+        <result property="disabled" column="disabled"/>
+        <result property="lastSyncStatus" column="last_sync_status"/>
+        <result property="lastSyncMessage" column="last_sync_message"/>
+        <result property="lastSyncTime" column="last_sync_time"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <select id="listByShopId" resultMap="OzonAuthResultMap">
+        select
+            id,
+            shop_id,
+            name,
+            client_id,
+            api_key_ciphertext,
+            api_key_fingerprint,
+            status,
+            disabled,
+            last_sync_status,
+            last_sync_message,
+            last_sync_time,
+            created_by,
+            updated_by,
+            create_time,
+            update_time
+        from t_ozon_auth
+        where shop_id = #{shopId}
+        order by update_time desc, create_time desc
+    </select>
+</mapper>

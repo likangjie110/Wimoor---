@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS `t_ozon_api_log` (
+  `id` bigint unsigned NOT NULL,
+  `auth_id` bigint unsigned DEFAULT NULL COMMENT '授权ID',
+  `shop_id` bigint unsigned DEFAULT NULL COMMENT '店铺ID',
+  `api_group` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '接口分组',
+  `action_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '动作名称',
+  `endpoint` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '远端接口路径',
+  `http_method` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT 'HTTP方法',
+  `object_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '关联对象类型',
+  `object_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '关联对象ID',
+  `request_payload_json` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin COMMENT '请求载荷',
+  `response_payload_json` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin COMMENT '响应载荷',
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '调用状态',
+  `error_message` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '错误信息',
+  `duration_ms` bigint DEFAULT NULL COMMENT '耗时毫秒',
+  `operator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '操作人',
+  `create_time` datetime DEFAULT NULL COMMENT '创建时间',
+  `update_time` datetime DEFAULT NULL COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_auth_group_status` (`auth_id`,`api_group`,`status`),
+  KEY `idx_object_ref` (`object_type`,`object_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='Ozon远端接口调用日志表';

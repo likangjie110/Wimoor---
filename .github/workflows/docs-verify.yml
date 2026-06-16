@@ -1,0 +1,28 @@
+name: docs-verify
+
+on:
+  push:
+    paths:
+      - '.github/workflows/docs-verify.yml'
+      - '.github/workflows/pages.yml'
+      - 'docs/**'
+      - 'tools/docs/**'
+  pull_request:
+    paths:
+      - '.github/workflows/docs-verify.yml'
+      - '.github/workflows/pages.yml'
+      - 'docs/**'
+      - 'tools/docs/**'
+  workflow_dispatch:
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Docs
+        shell: pwsh
+        run: ./tools/docs/check-docs.ps1
