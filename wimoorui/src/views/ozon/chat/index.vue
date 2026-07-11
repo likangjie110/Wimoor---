@@ -11,6 +11,12 @@
       title="Ozon 聊天发送未开启"
       description="当前页面仅支持本地导入和本地回复审计，不会把回复真正发送到 Ozon。"
     />
+    <OzonFeatureNotice
+      :item="features.chatSync"
+      type="info"
+      title="Ozon 聊天远程同步未开启"
+      description="本地导入和回复审计仍可使用，远程会话和消息同步由独立门禁控制。"
+    />
     <OzonFeatureSummaryBar :items="summaryFeatureItems" />
     <ModeSwitchBanner
       title="聊天双模工作台"
@@ -79,7 +85,10 @@
           <template #header>
             <div class="card-title">
               <div>会话列表</div>
-              <el-button @click="loadSessions">刷新</el-button>
+              <div class="table-actions">
+                <el-button :loading="syncingChats" :disabled="!isEnabled('chatSync')" @click="syncChats">同步会话</el-button>
+                <el-button @click="loadSessions">刷新</el-button>
+              </div>
             </div>
           </template>
           <el-table
@@ -107,7 +116,17 @@
           <template #header>
             <div class="card-title">
               <div>消息时间线</div>
-              <div>{{ selectedSession?.customerName || '未选择会话' }}</div>
+              <div class="table-actions">
+                <el-button
+                  v-if="selectedSession"
+                  :loading="syncingMessages"
+                  :disabled="!isEnabled('chatSync')"
+                  @click="syncCurrentMessages"
+                >
+                  同步当前会话消息
+                </el-button>
+                <div>{{ selectedSession?.customerName || '未选择会话' }}</div>
+              </div>
             </div>
           </template>
 
@@ -155,6 +174,8 @@ const importing = ref(false);
 const sessionLoading = ref(false);
 const messageLoading = ref(false);
 const replying = ref(false);
+const syncingChats = ref(false);
+const syncingMessages = ref(false);
 const authOptions = ref([]);
 const sessionData = ref([]);
 const messageData = ref([]);
@@ -176,7 +197,7 @@ const replyForm = reactive({
   replyText: ''
 });
 const { features, featureItems, loadFeatures, isEnabled, reason } = useOzonFeatures();
-const summaryFeatureItems = computed(() => featureItems.value.filter((item) => ['chat', 'chatSend'].includes(item.key)));
+const summaryFeatureItems = computed(() => featureItems.value.filter((item) => ['chat', 'chatSync', 'chatSend'].includes(item.key)));
 
 onMounted(() => {
   loadFeatures().finally(loadAuths);
@@ -279,6 +300,47 @@ function loadReplyAudits(sessionId) {
   });
 }
 
+function syncChats() {
+  if (!form.authId) {
+    ElMessage.warning('请先选择授权');
+    return;
+  }
+  if (!isEnabled('chatSync')) {
+    ElMessage.warning(reason('chatSync'));
+    return;
+  }
+  syncingChats.value = true;
+  chatApi.syncChats({ authId: form.authId })
+    .then((res) => {
+      ElMessage.success(`已同步 ${res.data?.sessionCount || 0} 个会话`);
+      loadSessions();
+    })
+    .finally(() => {
+      syncingChats.value = false;
+    });
+}
+
+function syncCurrentMessages() {
+  if (!selectedSession.value?.sessionId) {
+    ElMessage.warning('请先选择会话');
+    return;
+  }
+  if (!isEnabled('chatSync')) {
+    ElMessage.warning(reason('chatSync'));
+    return;
+  }
+  syncingMessages.value = true;
+  chatApi.syncMessages({
+    authId: form.authId,
+    chatId: selectedSession.value.sessionId
+  }).then((res) => {
+    ElMessage.success(`已同步 ${res.data?.messageCount || 0} 条消息`);
+    loadMessages(selectedSession.value.sessionId);
+  }).finally(() => {
+    syncingMessages.value = false;
+  });
+}
+
 function submitReply() {
   if (!isEnabled('chat')) {
     ElMessage.warning(reason('chat'));
@@ -328,6 +390,12 @@ function submitReply() {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
+}
+
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .message-board {

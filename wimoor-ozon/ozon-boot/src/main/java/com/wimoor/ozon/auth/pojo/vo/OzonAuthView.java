@@ -15,4 +15,7 @@ public class OzonAuthView {
     private String lastSyncStatus;
     private String lastSyncMessage;
     private Date lastSyncTime;
+    private Integer warehouseCount;
+    private String defaultWarehouse;
+    private Integer writeGatesEnabled;
 }

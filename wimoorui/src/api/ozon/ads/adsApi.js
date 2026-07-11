@@ -26,11 +26,31 @@ function createSyncIntent(data) {
   return request.post("/ozon/api/v1/ads/sync/intent", data);
 }
 
+/**
+ * 同步广告活动
+ */
+function syncCampaigns(authId) {
+  return request.post("/ozon/api/v1/ads/sync/campaigns", null, {
+    params: { authId }
+  });
+}
+
+/**
+ * 同步广告报告
+ */
+function syncReports(authId, startDate, endDate) {
+  return request.post("/ozon/api/v1/ads/sync/reports", null, {
+    params: { authId, startDate, endDate }
+  });
+}
+
 export default {
   importAds,
   listAccounts,
   listCampaigns,
   listReports,
   getSummary,
-  createSyncIntent
+  createSyncIntent,
+  syncCampaigns,
+  syncReports
 }

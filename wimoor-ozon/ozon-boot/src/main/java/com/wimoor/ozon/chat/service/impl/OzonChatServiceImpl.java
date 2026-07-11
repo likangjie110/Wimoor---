@@ -14,9 +14,9 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONArray;
+import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.wimoor.common.user.UserInfo;
 import com.wimoor.ozon.auth.pojo.entity.OzonAuth;
@@ -515,5 +515,139 @@ public class OzonChatServiceImpl implements IOzonChatService {
                 resultMessage,
                 user == null ? null : user.getId()
         ));
+    }
+
+    @Override
+    public OzonChatImportResult syncChatsFromApi(UserInfo user, String authId) {
+        OzonAuth auth = authAccessService.requireOwnedAuth(user, authId);
+        Date now = new Date();
+
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("page", 1);
+            payload.put("page_size", 100);
+
+            String response = sellerApiClient.listChats(
+                    auth.getClientId(),
+                    credentialService.decrypt(auth.getApiKeyCiphertext()),
+                    payload.toJSONString()
+            );
+
+            JSONObject responseJson = JSON.parseObject(response);
+            JSONArray chats = responseJson.getJSONObject("result") != null
+                ? responseJson.getJSONObject("result").getJSONArray("chats")
+                : null;
+
+            if (chats == null || chats.isEmpty()) {
+                throw new IllegalArgumentException("未找到可同步的会话数据");
+            }
+
+            int sessionCount = 0;
+            for (int i = 0; i < chats.size(); i++) {
+                JSONObject chatItem = chats.getJSONObject(i);
+                String chatId = requireText(firstText(chatItem, "chat_id", "chatId"), "chatId不能为空");
+
+                OzonChatSession existingSession = sessionMapper.selectOne(new QueryWrapper<OzonChatSession>()
+                    .eq("auth_id", auth.getId())
+                    .eq("session_id", chatId)
+                    .last("limit 1"));
+
+                if (existingSession == null) {
+                    OzonChatSession session = new OzonChatSession();
+                    session.setId(nextId());
+                    session.setAuthId(auth.getId());
+                    session.setShopId(auth.getShopId());
+                    session.setSessionId(chatId);
+                    session.setCustomerName(trim(firstText(chatItem, "customer_name", "customerName")));
+                    session.setUnreadCount(chatItem.getIntValue("unread_count"));
+                    session.setLastMessageAt(parseDate(firstText(chatItem, "last_message_time", "lastMessageTime")));
+                    session.setSessionStatus(trim(firstText(chatItem, "status")));
+                    session.setCreateTime(now);
+                    session.setUpdateTime(now);
+                    sessionMapper.insert(session);
+                    sessionCount++;
+                }
+            }
+
+            OzonChatImportResult result = new OzonChatImportResult();
+            result.setSessionCount(sessionCount);
+            result.setMessageCount(0);
+            result.setImportedAt(now);
+
+            recordOperationAudit(auth, user, "CHAT_API_SYNC", null, "sync_chats", payload.toJSONString(), "DONE", "synced " + sessionCount + " sessions");
+            return result;
+        } catch (RuntimeException ex) {
+            recordOperationAudit(auth, user, "CHAT_API_SYNC", null, "sync_chats", "", "FAILED", ex.getMessage());
+            throw ex;
+        }
+    }
+
+    @Override
+    public OzonChatImportResult syncMessagesFromApi(UserInfo user, String authId, String chatId) {
+        OzonAuth auth = authAccessService.requireOwnedAuth(user, authId);
+        if (StrUtil.isBlank(chatId)) {
+            throw new IllegalArgumentException("chatId不能为空");
+        }
+        Date now = new Date();
+
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("chat_id", chatId);
+            payload.put("page", 1);
+            payload.put("page_size", 100);
+
+            String response = sellerApiClient.getChatHistory(
+                    auth.getClientId(),
+                    credentialService.decrypt(auth.getApiKeyCiphertext()),
+                    payload.toJSONString()
+            );
+
+            JSONObject responseJson = JSON.parseObject(response);
+            JSONArray messages = responseJson.getJSONObject("result") != null
+                ? responseJson.getJSONObject("result").getJSONArray("messages")
+                : null;
+
+            if (messages == null || messages.isEmpty()) {
+                throw new IllegalArgumentException("未找到可同步的消息数据");
+            }
+
+            int messageCount = 0;
+            for (int i = 0; i < messages.size(); i++) {
+                JSONObject msgItem = messages.getJSONObject(i);
+                String messageId = requireText(firstText(msgItem, "message_id", "messageId"), "messageId不能为空");
+
+                OzonChatMessage existingMessage = messageMapper.selectOne(new QueryWrapper<OzonChatMessage>()
+                    .eq("auth_id", auth.getId())
+                    .eq("message_id", messageId)
+                    .last("limit 1"));
+
+                if (existingMessage == null) {
+                    OzonChatMessage message = new OzonChatMessage();
+                    message.setId(nextId());
+                    message.setAuthId(auth.getId());
+                    message.setShopId(auth.getShopId());
+                    message.setSessionId(chatId);
+                    message.setMessageId(messageId);
+                    message.setMessageText(trim(firstText(msgItem, "text", "message_text")));
+                    message.setSenderType(trim(firstText(msgItem, "sender_type", "senderType")));
+                    message.setMessageTime(parseDate(firstText(msgItem, "message_time", "messageTime")));
+                    message.setRawLineJson(msgItem.toJSONString());
+                    message.setCreateTime(now);
+                    messageMapper.insert(message);
+                    messageCount++;
+                }
+            }
+
+            OzonChatImportResult result = new OzonChatImportResult();
+            result.setSessionCount(0);
+            result.setMessageCount(messageCount);
+            result.setImportedAt(now);
+
+            recordOperationAudit(auth, user, "CHAT_API_SYNC", chatId, "sync_messages", payload.toJSONString(), "DONE", "synced " + messageCount + " messages");
+            return result;
+        } catch (RuntimeException ex) {
+            recordOperationAudit(auth, user, "CHAT_API_SYNC", chatId, "sync_messages", "", "FAILED", ex.getMessage());
+            throw ex;
+        }
     }
 }

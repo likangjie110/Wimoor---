@@ -8,7 +8,9 @@ const FEATURE_KEYS = [
   'task',
   'error',
   'finance',
+  'financeSync',
   'chat',
+  'chatSync',
   'ads',
   'stockWrite',
   'priceWrite',
@@ -24,7 +26,9 @@ const FEATURE_LABELS = {
   task: '任务',
   error: '错误中心',
   finance: '财务',
+  financeSync: '财务同步',
   chat: '聊天',
+  chatSync: '聊天同步',
   ads: '广告',
   stockWrite: '库存写入',
   priceWrite: '价格写入',
@@ -35,7 +39,13 @@ const FEATURE_LABELS = {
 
 function emptyFeatures() {
   return FEATURE_KEYS.reduce((result, key) => {
-    result[key] = { enabled: true, reason: null };
+    result[key] = {
+      enabled: true,
+      reason: null,
+      name: FEATURE_LABELS[key] || key,
+      description: '',
+      category: 'read'
+    };
     return result;
   }, {});
 }
@@ -54,7 +64,10 @@ function normalizeFeatureData(payload) {
     if (item && typeof item.enabled === 'boolean') {
       result[key] = {
         enabled: item.enabled,
-        reason: item.reason || null
+        reason: item.reason || null,
+        name: item.name || FEATURE_LABELS[key] || key,
+        description: item.description || '',
+        category: item.category || 'read'
       };
     }
   }

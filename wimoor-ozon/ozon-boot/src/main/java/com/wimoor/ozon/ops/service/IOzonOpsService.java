@@ -10,6 +10,7 @@ import com.wimoor.ozon.ops.pojo.dto.OzonOperationAuditQuery;
 import com.wimoor.ozon.ops.pojo.dto.OzonOperationAuditRecordCommand;
 import com.wimoor.ozon.ops.pojo.entity.OzonApiLog;
 import com.wimoor.ozon.ops.pojo.entity.OzonOperationAudit;
+import com.wimoor.ozon.ops.pojo.vo.OzonOpsDashboardView;
 import com.wimoor.ozon.ops.pojo.vo.OzonOpsSummaryView;
 
 public interface IOzonOpsService {
@@ -30,5 +31,9 @@ public interface IOzonOpsService {
 
     default OzonOpsSummaryView summary(UserInfo user, String authId) {
         return new OzonOpsSummaryView();
+    }
+
+    default OzonOpsDashboardView dashboard(UserInfo user, String authId) {
+        return new OzonOpsDashboardView();
     }
 }

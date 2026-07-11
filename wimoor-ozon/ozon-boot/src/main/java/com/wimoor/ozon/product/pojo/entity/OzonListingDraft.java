@@ -71,4 +71,31 @@ public class OzonListingDraft {
 
     @TableField("update_time")
     private Date updateTime;
+
+    @TableField(exist = false)
+    private String materialSku;
+
+    public String getName() {
+        return draftName;
+    }
+
+    public void setName(String name) {
+        this.draftName = name;
+    }
+
+    public Long getCategoryId() {
+        return descriptionCategoryId;
+    }
+
+    public void setCategoryId(Long categoryId) {
+        this.descriptionCategoryId = categoryId;
+    }
+
+    public String getDescription() {
+        return descriptionOverrideValue;
+    }
+
+    public void setDescription(String description) {
+        this.descriptionOverrideValue = description;
+    }
 }

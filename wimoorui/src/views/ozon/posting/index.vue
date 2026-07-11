@@ -14,8 +14,8 @@
             <p class="font-extraSmall">拉取 Ozon FBS posting，按商品映射写入 ERP 订单事实，不自动触发出库。</p>
           </div>
           <el-space>
-            <el-button @click="loadList">刷新列表</el-button>
-            <el-button type="primary" :loading="syncing" :disabled="!isEnabled('postingWrite')" @click="syncPostings">同步订单</el-button>
+            <el-button data-testid="btn-refresh" @click="loadList">刷新列表</el-button>
+            <el-button type="primary" :loading="syncing" :disabled="!isEnabled('postingWrite')" data-testid="btn-sync" @click="syncPostings">同步订单</el-button>
           </el-space>
         </div>
       </template>
@@ -23,7 +23,7 @@
       <el-row :gutter="16">
         <el-col :span="6">
           <el-form-item label="授权店铺">
-            <el-select v-model="query.authId" placeholder="请选择 Ozon 授权" style="width: 100%" @change="loadList">
+            <el-select v-model="query.authId" placeholder="请选择 Ozon 授权" style="width: 100%" data-testid="filter-auth" @change="loadList">
               <el-option v-for="item in authOptions" :key="item.id" :label="item.name" :value="item.id" />
             </el-select>
           </el-form-item>
@@ -47,19 +47,19 @@
         </el-col>
         <el-col :span="5">
           <el-form-item label="订单状态">
-            <el-input v-model="query.status" placeholder="例如 awaiting_packaging" clearable @keyup.enter="loadList" />
+            <el-input v-model="query.status" placeholder="例如 awaiting_packaging" clearable data-testid="filter-status" @keyup.enter="loadList" />
           </el-form-item>
         </el-col>
         <el-col :span="5">
           <el-form-item label="关键字">
-            <el-input v-model="query.keyword" placeholder="Posting Number" clearable @keyup.enter="loadList" />
+            <el-input v-model="query.keyword" placeholder="Posting Number" clearable data-testid="filter-keyword" @keyup.enter="loadList" />
           </el-form-item>
         </el-col>
       </el-row>
     </el-card>
 
     <el-card shadow="never">
-      <el-table v-loading="loading" :data="tableData" border>
+      <el-table v-loading="loading" :data="tableData" border data-testid="posting-list">
         <el-table-column prop="postingNumber" label="Posting Number" min-width="180" show-overflow-tooltip />
         <el-table-column prop="fulfillmentType" label="履约" width="90" />
         <el-table-column prop="postingStatus" label="订单状态" min-width="160" show-overflow-tooltip />
@@ -161,13 +161,13 @@
       </template>
     </el-dialog>
 
-    <el-drawer v-model="detailDialog.visible" title="Posting 详情" size="760px">
+    <el-drawer v-model="detailDialog.visible" title="Posting 详情" size="760px" data-testid="posting-detail-drawer">
       <el-skeleton v-if="detailDialog.loading" animated :rows="10" />
       <template v-else>
         <el-descriptions :column="2" border size="small">
-          <el-descriptions-item label="Posting Number">{{ detailDialog.detail?.postingNumber || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="Posting Number" data-testid="detail-posting-number">{{ detailDialog.detail?.postingNumber || '-' }}</el-descriptions-item>
           <el-descriptions-item label="履约类型">{{ detailDialog.detail?.fulfillmentType || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="订单状态">{{ detailDialog.detail?.postingStatus || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="订单状态" data-testid="order-status">{{ detailDialog.detail?.postingStatus || '-' }}</el-descriptions-item>
           <el-descriptions-item label="子状态">{{ detailDialog.detail?.substatus || '-' }}</el-descriptions-item>
           <el-descriptions-item label="仓库ID">{{ detailDialog.detail?.warehouseId || '-' }}</el-descriptions-item>
           <el-descriptions-item label="桥接状态">{{ detailDialog.detail?.bridgeStatus || '-' }}</el-descriptions-item>
@@ -195,6 +195,8 @@
         </el-table>
 
         <AfterSalePanel
+          :auth-id="query.authId"
+          :posting-id="detailDialog.detail?.id"
           :detail="detailDialog.afterSale"
           :disabled="!isEnabled('postingWrite')"
           @refresh="loadAfterSaleDetail"
@@ -209,7 +211,7 @@
         </el-scrollbar>
       </template>
       <template #footer>
-        <el-button @click="detailDialog.visible = false">关闭</el-button>
+        <el-button data-testid="btn-close-detail" @click="detailDialog.visible = false">关闭</el-button>
         <el-button
           v-if="detailDialog.detail?.id"
           type="primary"

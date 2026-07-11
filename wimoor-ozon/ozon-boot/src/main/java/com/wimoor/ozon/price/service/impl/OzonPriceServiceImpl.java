@@ -11,15 +11,16 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONArray;
+import com.alibaba.fastjson2.JSONObject;
 import com.wimoor.common.user.UserInfo;
 import com.wimoor.ozon.auth.mapper.OzonAuthMapper;
 import com.wimoor.ozon.auth.pojo.entity.OzonAuth;
 import com.wimoor.ozon.auth.service.OzonAuthAccessService;
 import com.wimoor.ozon.client.OzonSellerApiClient;
 import com.wimoor.ozon.config.OzonFeatureGate;
+import com.wimoor.ozon.ops.annotation.OzonAudit;
 import com.wimoor.ozon.ops.pojo.dto.OzonApiLogRecordCommand;
 import com.wimoor.ozon.ops.pojo.dto.OzonOperationAuditRecordCommand;
 import com.wimoor.ozon.ops.service.IOzonOpsService;
@@ -123,6 +124,7 @@ public class OzonPriceServiceImpl implements IOzonPriceService {
     }
 
     @Override
+    @OzonAudit(operationType = "PUSH", objectType = "PRICE", description = "推送价格到 OZON")
     public OzonPricePushResult push(UserInfo user, OzonPricePushCommand command) {
         featureGate.assertPriceWriteEnabled();
         OzonAuth auth = authAccessService.requireOwnedAuth(user, command.getAuthId());

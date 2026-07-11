@@ -44,4 +44,8 @@ public class OzonChatMessage {
 
     @TableField("create_time")
     private Date createTime;
+
+    public void setChatId(String chatId) {
+        this.sessionId = chatId;
+    }
 }

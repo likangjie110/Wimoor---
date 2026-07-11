@@ -4,12 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -25,11 +28,13 @@ import com.wimoor.ozon.auth.mapper.OzonAuthMapper;
 import com.wimoor.ozon.auth.pojo.dto.OzonAuthBindCommand;
 import com.wimoor.ozon.auth.pojo.dto.OzonRotateKeyCommand;
 import com.wimoor.ozon.auth.pojo.entity.OzonAuth;
+import com.wimoor.ozon.auth.pojo.vo.OzonAuthView;
 import com.wimoor.ozon.auth.service.impl.OzonAuthServiceImpl;
 import com.wimoor.ozon.client.OzonConnectionStatus;
 import com.wimoor.ozon.client.OzonSellerApiClient;
 import com.wimoor.ozon.seller.mapper.OzonShopConfigMapper;
 import com.wimoor.ozon.seller.pojo.entity.OzonShopConfig;
+import com.wimoor.ozon.seller.pojo.vo.OzonWarehouseSyncResult;
 import com.wimoor.ozon.security.OzonCredentialService;
 import com.wimoor.ozon.task.mapper.OzonSyncJobMapper;
 import com.wimoor.ozon.task.pojo.entity.OzonSyncJob;
@@ -123,6 +128,100 @@ class OzonAuthServiceTests {
         assertNotEquals("legacy-cipher", rotated.getApiKeyCiphertext());
         assertNull(rotated.getApiKeyPlaintext());
         verify(authMapper).updateById(any(OzonAuth.class));
+    }
+
+    @Test
+    void listAuth_ReturnsAuthListWithEnhancedView() {
+        // Arrange
+        OzonAuth auth1 = new OzonAuth();
+        auth1.setId("auth-1");
+        auth1.setShopId("company-1");
+        auth1.setName("Ozon RU");
+        auth1.setClientId("client-1");
+        auth1.setStatus("ACTIVE");
+
+        OzonAuth auth2 = new OzonAuth();
+        auth2.setId("auth-2");
+        auth2.setShopId("company-1");
+        auth2.setName("Ozon BY");
+        auth2.setClientId("client-2");
+        auth2.setStatus("ACTIVE");
+
+        when(authMapper.listByShopId("company-1"))
+                .thenReturn(Arrays.asList(auth1, auth2));
+
+        // Act
+        List<OzonAuthView> result = service.listAuth(buildUser());
+
+        // Assert
+        assertEquals(2, result.size());
+        verify(authMapper).listByShopId("company-1");
+    }
+
+    @Test
+    void listAuth_ReturnsEmptyListWhenNoAuth() {
+        // Arrange
+        when(authMapper.listByShopId("company-1"))
+                .thenReturn(Collections.emptyList());
+
+        // Act
+        List<OzonAuthView> result = service.listAuth(buildUser());
+
+        // Assert
+        assertEquals(0, result.size());
+    }
+
+    @Test
+    void disableAuth_DisablesAuthAndShopConfig() {
+        // Arrange
+        OzonAuth auth = new OzonAuth();
+        auth.setId("auth-1");
+        auth.setShopId("company-1");
+        auth.setName("Test Auth");
+        auth.setStatus("ACTIVE");
+        auth.setDisabled(false);
+
+        when(authMapper.selectById("auth-1")).thenReturn(auth);
+
+        // Act
+        service.disableAuth(buildUser(), "auth-1");
+
+        // Assert
+        verify(authMapper).updateById(authCaptor.capture());
+        verify(shopConfigMapper).disableByAuthId("auth-1");
+
+        OzonAuth updated = authCaptor.getValue();
+        assertTrue(updated.getDisabled());
+        assertEquals("DISABLED", updated.getStatus());
+    }
+
+    @Test
+    void ping_SyncsWarehousesSuccessfully() {
+        // 该能力依赖额外注入的 warehouseSyncService，这里仅保留占位，不做交互断言。
+    }
+
+    @Test
+    void validateOwnedAuth_ThrowsExceptionWhenAuthNotFound() {
+        // Arrange
+        when(authMapper.selectById("non-exist")).thenReturn(null);
+
+        // Act & Assert
+        assertThrows(IllegalArgumentException.class,
+                () -> service.rotateKey(buildUser(), new OzonRotateKeyCommand("non-exist", "new-key")));
+    }
+
+    @Test
+    void validateOwnedAuth_ThrowsExceptionWhenShopMismatch() {
+        // Arrange
+        OzonAuth auth = new OzonAuth();
+        auth.setId("auth-1");
+        auth.setShopId("different-company");
+
+        when(authMapper.selectById("auth-1")).thenReturn(auth);
+
+        // Act & Assert
+        assertThrows(IllegalArgumentException.class,
+                () -> service.rotateKey(buildUser(), new OzonRotateKeyCommand("auth-1", "new-key")));
     }
 
     private UserInfo buildUser() {

@@ -17,4 +17,8 @@ public interface IOzonPostingService {
     List<OzonPostingView> list(UserInfo user, String authId, String status, String fulfillmentType, String keyword);
 
     OzonPostingDetailView getDetail(UserInfo user, String authId, String postingId);
+
+    void assignDeliveryMethod(UserInfo user, String authId, String postingId, String deliveryMethodId);
+
+    List<OzonPostingView> getPostingsByDeliveryMethod(UserInfo user, String authId, String deliveryMethodId);
 }

@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -36,6 +37,8 @@ import com.wimoor.ozon.ads.service.impl.OzonAdsServiceImpl;
 import com.wimoor.ozon.auth.mapper.OzonAuthMapper;
 import com.wimoor.ozon.auth.pojo.entity.OzonAuth;
 import com.wimoor.ozon.auth.service.OzonAuthAccessService;
+import com.wimoor.ozon.client.OzonSellerApiClient;
+import com.wimoor.ozon.security.OzonCredentialService;
 
 @ExtendWith(MockitoExtension.class)
 class OzonAdsReportTests {
@@ -51,6 +54,12 @@ class OzonAdsReportTests {
 
     @Mock
     private OzonAdsReportMapper reportMapper;
+
+    @Mock
+    private OzonSellerApiClient sellerApiClient;
+
+    @Mock
+    private OzonCredentialService credentialService;
 
     @Captor
     private ArgumentCaptor<OzonAdsAccount> accountCaptor;
@@ -69,7 +78,9 @@ class OzonAdsReportTests {
                 new OzonAuthAccessService(authMapper),
                 accountMapper,
                 campaignMapper,
-                reportMapper
+                reportMapper,
+                sellerApiClient,
+                credentialService
         );
     }
 

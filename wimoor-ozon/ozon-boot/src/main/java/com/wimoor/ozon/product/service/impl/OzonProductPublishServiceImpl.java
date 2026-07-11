@@ -10,8 +10,8 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.wimoor.common.user.UserInfo;
 import com.wimoor.ozon.auth.mapper.OzonAuthMapper;
@@ -20,6 +20,7 @@ import com.wimoor.ozon.config.OzonFeatureGate;
 import com.wimoor.ozon.error.pojo.dto.OzonErrorRecordCommand;
 import com.wimoor.ozon.error.pojo.entity.OzonErrorSourceType;
 import com.wimoor.ozon.error.service.OzonErrorRecorder;
+import com.wimoor.ozon.ops.annotation.OzonAudit;
 import com.wimoor.ozon.ops.pojo.dto.OzonApiLogRecordCommand;
 import com.wimoor.ozon.ops.pojo.dto.OzonOperationAuditRecordCommand;
 import com.wimoor.ozon.ops.service.IOzonOpsService;
@@ -140,6 +141,7 @@ public class OzonProductPublishServiceImpl implements IOzonProductPublishService
     }
 
     @Override
+    @OzonAudit(operationType = "PUBLISH", objectType = "PRODUCT", description = "发布商品到 OZON")
     public OzonProductPublishView publish(UserInfo user, OzonProductPublishCommand command) {
         featureGate.assertProductWriteEnabled();
         String auditPayload = JSON.toJSONString(command);

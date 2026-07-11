@@ -1,0 +1,34 @@
+server:
+  port: 8106
+  servlet:
+    context-path: /ozon
+spring:
+  application:
+    name: wimoor-ozon
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+      config:
+        enabled: false
+ozon:
+  api:
+    base-url: ${OZON_API_SELLER_BASE_URL:https://api-seller.ozon.ru}
+    seller-base-url: ${OZON_API_SELLER_BASE_URL:https://api-seller.ozon.ru}
+    performance-base-url: ${OZON_API_PERFORMANCE_BASE_URL:https://api-performance.ozon.ru}
+  feature:
+    auth: true
+    product: true
+    product-write: ${OZON_FEATURE_PRODUCT_WRITE:false}
+    task: true
+    error: true
+    finance: true
+    finance-sync: ${OZON_FEATURE_FINANCE_SYNC:false}
+    chat: true
+    chat-sync: ${OZON_FEATURE_CHAT_SYNC:false}
+    ads: true
+    stock-write: ${OZON_FEATURE_STOCK_WRITE:false}
+    price-write: ${OZON_FEATURE_PRICE_WRITE:false}
+    posting-write: ${OZON_FEATURE_POSTING_WRITE:false}
+    chat-send: ${OZON_FEATURE_CHAT_SEND:false}
+    ads-sync: ${OZON_FEATURE_ADS_SYNC:false}

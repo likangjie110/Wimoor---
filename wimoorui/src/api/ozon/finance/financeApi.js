@@ -20,9 +20,30 @@ function getRawContent(authId, taskId) {
   });
 }
 
+function syncTransactions(data) {
+  return request.post("/ozon/api/v1/finance/sync/transactions", null, {
+    params: data
+  });
+}
+
+function syncRealizations(data) {
+  return request.post("/ozon/api/v1/finance/sync/realizations", null, {
+    params: data
+  });
+}
+
+function fetchReport(data) {
+  return request.post("/ozon/api/v1/finance/fetch/report", null, {
+    params: data
+  });
+}
+
 export default {
   importReport,
   listTasks,
   listTransactions,
-  getRawContent
+  getRawContent,
+  syncTransactions,
+  syncRealizations,
+  fetchReport
 }

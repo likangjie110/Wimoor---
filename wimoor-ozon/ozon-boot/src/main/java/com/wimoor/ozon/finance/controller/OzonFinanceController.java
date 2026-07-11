@@ -1,5 +1,6 @@
 package com.wimoor.ozon.finance.controller;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.web.bind.annotation.GetMapping;
@@ -59,6 +60,44 @@ public class OzonFinanceController {
         return execute(() -> {
             featureGate.assertFinanceEnabled();
             return financeService.getRawContent(currentUser(), authId, taskId);
+        });
+    }
+
+    @PostMapping("/sync/transactions")
+    public Result<OzonFinanceImportResult> syncTransactions(
+            @RequestParam String authId,
+            @RequestParam String startDate,
+            @RequestParam String endDate) {
+        return execute(() -> {
+            featureGate.assertFinanceEnabled();
+            featureGate.assertFinanceSyncEnabled();
+            LocalDate start = LocalDate.parse(startDate);
+            LocalDate end = LocalDate.parse(endDate);
+            return financeService.syncTransactionsFromApi(currentUser(), authId, start, end);
+        });
+    }
+
+    @PostMapping("/sync/realizations")
+    public Result<OzonFinanceImportResult> syncRealizations(
+            @RequestParam String authId,
+            @RequestParam String startDate,
+            @RequestParam String endDate) {
+        return execute(() -> {
+            featureGate.assertFinanceEnabled();
+            featureGate.assertFinanceSyncEnabled();
+            LocalDate start = LocalDate.parse(startDate);
+            LocalDate end = LocalDate.parse(endDate);
+            return financeService.syncRealizationsFromApi(currentUser(), authId, start, end);
+        });
+    }
+
+    @PostMapping("/fetch/report")
+    public Result<OzonFinanceImportResult> fetchReport(
+            @RequestParam String authId,
+            @RequestParam String reportType) {
+        return execute(() -> {
+            featureGate.assertFinanceEnabled();
+            return financeService.fetchReportFromApi(currentUser(), authId, reportType);
         });
     }
 

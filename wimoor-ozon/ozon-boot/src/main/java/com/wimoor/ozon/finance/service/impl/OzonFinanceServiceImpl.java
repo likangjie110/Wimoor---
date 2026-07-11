@@ -17,13 +17,14 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONArray;
+import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.wimoor.common.user.UserInfo;
 import com.wimoor.ozon.auth.pojo.entity.OzonAuth;
 import com.wimoor.ozon.auth.service.OzonAuthAccessService;
+import com.wimoor.ozon.client.OzonSellerApiClient;
 import com.wimoor.ozon.finance.mapper.OzonFinTransactionMapper;
 import com.wimoor.ozon.finance.mapper.OzonReportFileMapper;
 import com.wimoor.ozon.finance.mapper.OzonReportTaskMapper;
@@ -37,6 +38,7 @@ import com.wimoor.ozon.finance.pojo.vo.OzonFinanceTaskView;
 import com.wimoor.ozon.finance.service.IOzonFinanceService;
 import com.wimoor.ozon.ops.pojo.dto.OzonOperationAuditRecordCommand;
 import com.wimoor.ozon.ops.service.IOzonOpsService;
+import com.wimoor.ozon.security.OzonCredentialService;
 import com.wimoor.ozon.task.mapper.OzonSyncJobMapper;
 import com.wimoor.ozon.task.pojo.entity.OzonSyncJob;
 import com.wimoor.ozon.task.pojo.entity.OzonSyncJobType;
@@ -53,16 +55,48 @@ public class OzonFinanceServiceImpl implements IOzonFinanceService {
     private static final String JSON_CONTENT = "JSON";
     private static final String DEFAULT_CURRENCY = "RUB";
     private static final String SOURCE_MODE_LOCAL_IMPORT = "LOCAL_IMPORT";
+    private static final String SOURCE_MODE_API_SYNC = "API_SYNC";
 
     private final OzonAuthAccessService authAccessService;
+    private final OzonSellerApiClient apiClient;
     private final OzonReportTaskMapper reportTaskMapper;
     private final OzonReportFileMapper reportFileMapper;
     private final OzonFinTransactionMapper finTransactionMapper;
     private final OzonSyncJobMapper syncJobMapper;
+    private final OzonCredentialService credentialService;
     private IOzonOpsService opsService = new IOzonOpsService() {
     };
 
     @Autowired
+    public OzonFinanceServiceImpl(
+            OzonAuthAccessService authAccessService,
+            OzonSellerApiClient apiClient,
+            OzonReportTaskMapper reportTaskMapper,
+            OzonReportFileMapper reportFileMapper,
+            OzonFinTransactionMapper finTransactionMapper,
+            OzonSyncJobMapper syncJobMapper,
+            OzonCredentialService credentialService
+    ) {
+        this.authAccessService = authAccessService;
+        this.apiClient = apiClient;
+        this.reportTaskMapper = reportTaskMapper;
+        this.reportFileMapper = reportFileMapper;
+        this.finTransactionMapper = finTransactionMapper;
+        this.syncJobMapper = syncJobMapper;
+        this.credentialService = credentialService;
+    }
+
+    public OzonFinanceServiceImpl(
+            OzonAuthAccessService authAccessService,
+            OzonSellerApiClient apiClient,
+            OzonReportTaskMapper reportTaskMapper,
+            OzonReportFileMapper reportFileMapper,
+            OzonFinTransactionMapper finTransactionMapper,
+            OzonSyncJobMapper syncJobMapper
+    ) {
+        this(authAccessService, apiClient, reportTaskMapper, reportFileMapper, finTransactionMapper, syncJobMapper, null);
+    }
+
     public OzonFinanceServiceImpl(
             OzonAuthAccessService authAccessService,
             OzonReportTaskMapper reportTaskMapper,
@@ -70,11 +104,7 @@ public class OzonFinanceServiceImpl implements IOzonFinanceService {
             OzonFinTransactionMapper finTransactionMapper,
             OzonSyncJobMapper syncJobMapper
     ) {
-        this.authAccessService = authAccessService;
-        this.reportTaskMapper = reportTaskMapper;
-        this.reportFileMapper = reportFileMapper;
-        this.finTransactionMapper = finTransactionMapper;
-        this.syncJobMapper = syncJobMapper;
+        this(authAccessService, null, reportTaskMapper, reportFileMapper, finTransactionMapper, syncJobMapper, null);
     }
 
     @Autowired(required = false)
@@ -406,5 +436,196 @@ public class OzonFinanceServiceImpl implements IOzonFinanceService {
                 resultMessage,
                 user == null ? null : user.getId()
         ));
+    }
+
+    @Override
+    public OzonFinanceImportResult syncTransactionsFromApi(UserInfo user, String authId, LocalDate startDate, LocalDate endDate) {
+        OzonAuth auth = authAccessService.requireOwnedAuth(user, authId);
+        if (startDate == null || endDate == null) {
+            throw new IllegalArgumentException("开始日期和结束日期不能为空");
+        }
+        Date now = new Date();
+        String reportId = "api-transactions-" + startDate + "-to-" + endDate;
+        Date reportDate = Date.from(startDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
+
+        OzonReportTask task = buildApiTask(auth, user, reportId, reportDate, "API_TRANSACTIONS", now);
+        OzonSyncJob syncJob = buildSyncJob(auth, user, reportId, startDate.toString(), now);
+
+        reportTaskMapper.insert(task);
+        syncJobMapper.insert(syncJob);
+
+        try {
+            JSONObject payload = new JSONObject();
+            JSONObject filter = new JSONObject();
+            filter.put("date", new JSONObject()
+                .fluentPut("from", startDate.toString() + "T00:00:00Z")
+                .fluentPut("to", endDate.toString() + "T23:59:59Z"));
+            payload.put("filter", filter);
+            payload.put("page", 1);
+            payload.put("page_size", 1000);
+
+            String response = apiClient.listFinanceTransactions(
+                    auth.getClientId(),
+                    resolveApiKey(auth),
+                    payload.toJSONString()
+            );
+
+            OzonReportFile reportFile = buildReportFile(task, auth, reportId, reportDate, response, now);
+            reportFileMapper.insert(reportFile);
+
+            List<OzonFinTransaction> transactions = parseTransactions(task, auth, reportId, reportDate, response, now);
+            finTransactionMapper.deleteByAuthIdAndReportId(auth.getId(), reportId);
+            for (OzonFinTransaction item : transactions) {
+                finTransactionMapper.insert(item);
+            }
+
+            finishTask(task, transactions.size(), now);
+            finishSyncJob(syncJob, now);
+
+            OzonFinanceImportResult result = new OzonFinanceImportResult();
+            result.setTaskId(task.getId());
+            result.setReportId(reportId);
+            result.setImportedCount(transactions.size());
+            result.setImportedAt(now);
+
+            recordOperationAudit(auth, user, task.getId(), reportId, payload.toJSONString(), DONE, "synced " + transactions.size());
+            return result;
+        } catch (RuntimeException ex) {
+            failTask(task, now, ex);
+            failSyncJob(syncJob, now, ex);
+            recordOperationAudit(auth, user, task.getId(), reportId, "", FAILED, ex.getMessage());
+            throw ex;
+        }
+    }
+
+    @Override
+    public OzonFinanceImportResult syncRealizationsFromApi(UserInfo user, String authId, LocalDate startDate, LocalDate endDate) {
+        OzonAuth auth = authAccessService.requireOwnedAuth(user, authId);
+        if (startDate == null || endDate == null) {
+            throw new IllegalArgumentException("开始日期和结束日期不能为空");
+        }
+        Date now = new Date();
+        String reportId = "api-realizations-" + startDate + "-to-" + endDate;
+        Date reportDate = Date.from(startDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
+
+        OzonReportTask task = buildApiTask(auth, user, reportId, reportDate, "API_REALIZATIONS", now);
+        OzonSyncJob syncJob = buildSyncJob(auth, user, reportId, startDate.toString(), now);
+
+        reportTaskMapper.insert(task);
+        syncJobMapper.insert(syncJob);
+
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("date", new JSONObject()
+                .fluentPut("from", startDate.toString() + "T00:00:00Z")
+                .fluentPut("to", endDate.toString() + "T23:59:59Z"));
+            payload.put("page", 1);
+            payload.put("page_size", 1000);
+
+            String response = apiClient.listFinanceRealizations(
+                    auth.getClientId(),
+                    resolveApiKey(auth),
+                    payload.toJSONString()
+            );
+
+            OzonReportFile reportFile = buildReportFile(task, auth, reportId, reportDate, response, now);
+            reportFileMapper.insert(reportFile);
+
+            List<OzonFinTransaction> transactions = parseTransactions(task, auth, reportId, reportDate, response, now);
+            finTransactionMapper.deleteByAuthIdAndReportId(auth.getId(), reportId);
+            for (OzonFinTransaction item : transactions) {
+                finTransactionMapper.insert(item);
+            }
+
+            finishTask(task, transactions.size(), now);
+            finishSyncJob(syncJob, now);
+
+            OzonFinanceImportResult result = new OzonFinanceImportResult();
+            result.setTaskId(task.getId());
+            result.setReportId(reportId);
+            result.setImportedCount(transactions.size());
+            result.setImportedAt(now);
+
+            recordOperationAudit(auth, user, task.getId(), reportId, payload.toJSONString(), DONE, "synced " + transactions.size());
+            return result;
+        } catch (RuntimeException ex) {
+            failTask(task, now, ex);
+            failSyncJob(syncJob, now, ex);
+            recordOperationAudit(auth, user, task.getId(), reportId, "", FAILED, ex.getMessage());
+            throw ex;
+        }
+    }
+
+    @Override
+    public OzonFinanceImportResult fetchReportFromApi(UserInfo user, String authId, String reportType) {
+        OzonAuth auth = authAccessService.requireOwnedAuth(user, authId);
+        if (StrUtil.isBlank(reportType)) {
+            throw new IllegalArgumentException("报告类型不能为空");
+        }
+        Date now = new Date();
+        String reportId = "api-report-" + reportType + "-" + System.currentTimeMillis();
+        Date reportDate = now;
+
+        OzonReportTask task = buildApiTask(auth, user, reportId, reportDate, "API_REPORT", now);
+        OzonSyncJob syncJob = buildSyncJob(auth, user, reportId, reportType, now);
+
+        reportTaskMapper.insert(task);
+        syncJobMapper.insert(syncJob);
+
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("code", reportType);
+
+            String response = apiClient.getFinanceReportInfo(
+                    auth.getClientId(),
+                    resolveApiKey(auth),
+                    payload.toJSONString()
+            );
+
+            OzonReportFile reportFile = buildReportFile(task, auth, reportId, reportDate, response, now);
+            reportFileMapper.insert(reportFile);
+
+            finishTask(task, 1, now);
+            finishSyncJob(syncJob, now);
+
+            OzonFinanceImportResult result = new OzonFinanceImportResult();
+            result.setTaskId(task.getId());
+            result.setReportId(reportId);
+            result.setImportedCount(1);
+            result.setImportedAt(now);
+
+            recordOperationAudit(auth, user, task.getId(), reportId, payload.toJSONString(), DONE, "fetched report");
+            return result;
+        } catch (RuntimeException ex) {
+            failTask(task, now, ex);
+            failSyncJob(syncJob, now, ex);
+            recordOperationAudit(auth, user, task.getId(), reportId, "", FAILED, ex.getMessage());
+            throw ex;
+        }
+    }
+
+    private String resolveApiKey(OzonAuth auth) {
+        if (auth == null) {
+            return null;
+        }
+        if (StrUtil.isNotBlank(auth.getApiKeyCiphertext()) && credentialService != null) {
+            return credentialService.decrypt(auth.getApiKeyCiphertext());
+        }
+        return auth.getApiKey();
+    }
+
+    private OzonReportTask buildApiTask(OzonAuth auth, UserInfo user, String reportId, Date reportDate, String taskType, Date now) {
+        OzonReportTask task = new OzonReportTask();
+        task.setId(nextId());
+        task.setAuthId(auth.getId());
+        task.setShopId(auth.getShopId());
+        task.setReportId(reportId);
+        task.setReportDate(reportDate);
+        task.setTaskStatus(RUNNING);
+        task.setImportedCount(0);
+        task.setOperator(user == null ? null : user.getId());
+        task.setCreateTime(now);
+        task.setUpdateTime(now);
+        return task;
     }
 }

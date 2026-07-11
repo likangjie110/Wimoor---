@@ -17,12 +17,13 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONArray;
+import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.wimoor.common.user.UserInfo;
 import com.wimoor.ozon.ads.mapper.OzonAdsAccountMapper;
+import com.wimoor.ozon.ads.client.OzonPerformanceApiClient;
 import com.wimoor.ozon.ads.mapper.OzonAdsCampaignMapper;
 import com.wimoor.ozon.ads.mapper.OzonAdsReportMapper;
 import com.wimoor.ozon.ads.pojo.dto.OzonAdsImportCommand;
@@ -37,8 +38,10 @@ import com.wimoor.ozon.ads.pojo.vo.OzonAdsSyncIntentResult;
 import com.wimoor.ozon.ads.service.IOzonAdsService;
 import com.wimoor.ozon.auth.pojo.entity.OzonAuth;
 import com.wimoor.ozon.auth.service.OzonAuthAccessService;
+import com.wimoor.ozon.client.OzonSellerApiClient;
 import com.wimoor.ozon.ops.pojo.dto.OzonOperationAuditRecordCommand;
 import com.wimoor.ozon.ops.service.IOzonOpsService;
+import com.wimoor.ozon.security.OzonCredentialService;
 
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
@@ -50,6 +53,9 @@ public class OzonAdsServiceImpl implements IOzonAdsService {
     private final OzonAdsAccountMapper accountMapper;
     private final OzonAdsCampaignMapper campaignMapper;
     private final OzonAdsReportMapper reportMapper;
+    private final OzonSellerApiClient sellerApiClient;
+    private OzonPerformanceApiClient performanceApiClient;
+    private final OzonCredentialService credentialService;
     private IOzonOpsService opsService = new IOzonOpsService() {
     };
 
@@ -57,12 +63,32 @@ public class OzonAdsServiceImpl implements IOzonAdsService {
             OzonAuthAccessService authAccessService,
             OzonAdsAccountMapper accountMapper,
             OzonAdsCampaignMapper campaignMapper,
-            OzonAdsReportMapper reportMapper
+            OzonAdsReportMapper reportMapper,
+            OzonSellerApiClient sellerApiClient,
+            OzonCredentialService credentialService
     ) {
         this.authAccessService = authAccessService;
         this.accountMapper = accountMapper;
         this.campaignMapper = campaignMapper;
         this.reportMapper = reportMapper;
+        this.sellerApiClient = sellerApiClient;
+        this.performanceApiClient = new OzonPerformanceApiClient() {
+            @Override
+            public String listCampaigns(String clientId, String apiKey, String payload) {
+                return sellerApiClient.listAdsCampaigns(clientId, apiKey, payload);
+            }
+
+            @Override
+            public String getReport(String clientId, String apiKey, String payload) {
+                return sellerApiClient.getAdsReport(clientId, apiKey, payload);
+            }
+        };
+        this.credentialService = credentialService;
+    }
+
+    @Autowired
+    public void setPerformanceApiClient(OzonPerformanceApiClient performanceApiClient) {
+        this.performanceApiClient = performanceApiClient;
     }
 
     @Autowired(required = false)
@@ -332,6 +358,9 @@ public class OzonAdsServiceImpl implements IOzonAdsService {
     }
 
     private String firstText(JSONObject item, String... keys) {
+        if (item == null) {
+            return null;
+        }
         for (String key : keys) {
             String value = item.getString(key);
             if (StrUtil.isNotBlank(value)) {
@@ -412,5 +441,173 @@ public class OzonAdsServiceImpl implements IOzonAdsService {
                 resultMessage,
                 user == null ? null : user.getId()
         ));
+    }
+
+    @Override
+    public List<OzonAdsCampaign> syncCampaignsFromApi(UserInfo user, String authId) {
+        OzonAuth auth = authAccessService.requireOwnedAuth(user, authId);
+        Date now = new Date();
+        String auditPayload = JSON.toJSONString(Collections.singletonMap("authId", authId));
+
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("page", 1);
+            payload.put("page_size", 100);
+
+            String response = performanceApiClient.listCampaigns(
+                    auth.getClientId(),
+                    credentialService.decrypt(auth.getApiKeyCiphertext()),
+                    payload.toJSONString()
+            );
+
+            JSONObject responseJson = JSON.parseObject(response);
+            JSONArray campaigns = responseJson.getJSONObject("result") != null
+                    ? responseJson.getJSONObject("result").getJSONArray("campaigns")
+                    : null;
+
+            if (campaigns == null || campaigns.isEmpty()) {
+                recordOperationAudit(auth, user, "ADS_SYNC_CAMPAIGNS", authId, "sync_campaigns", auditPayload, "DONE", "no campaigns found");
+                return Collections.emptyList();
+            }
+
+            List<OzonAdsCampaign> result = new ArrayList<>(campaigns.size());
+            String accountId = resolveAccountId(auth, responseJson);
+
+            for (int i = 0; i < campaigns.size(); i++) {
+                JSONObject campaignItem = campaigns.getJSONObject(i);
+                String campaignId = requireText(firstText(campaignItem, "campaign_id", "campaignId"), "campaignId不能为空");
+
+                OzonAdsCampaign existingCampaign = campaignMapper.selectOne(new QueryWrapper<OzonAdsCampaign>()
+                        .eq("auth_id", auth.getId())
+                        .eq("campaign_id", campaignId)
+                        .last("limit 1"));
+
+                if (existingCampaign == null) {
+                    OzonAdsCampaign campaign = new OzonAdsCampaign();
+                    campaign.setId(nextId());
+                    campaign.setAuthId(auth.getId());
+                    campaign.setShopId(auth.getShopId());
+                    campaign.setAccountId(accountId);
+                    campaign.setCampaignId(campaignId);
+                    campaign.setCampaignName(firstText(campaignItem, "campaign_name", "campaignName"));
+                    campaign.setCampaignType(firstText(campaignItem, "campaign_type", "campaignType"));
+                    campaign.setCampaignStatus(firstText(campaignItem, "status", "campaign_status", "campaignStatus"));
+                    campaign.setBudget(parseDecimal(firstText(campaignItem, "budget")));
+                    campaign.setCreateTime(now);
+                    campaign.setUpdateTime(now);
+                    campaignMapper.upsert(campaign);
+                    result.add(campaign);
+                }
+            }
+
+            recordOperationAudit(auth, user, "ADS_SYNC_CAMPAIGNS", authId, "sync_campaigns", auditPayload, "DONE", "synced " + result.size() + " campaigns");
+            return result;
+        } catch (RuntimeException ex) {
+            recordOperationAudit(auth, user, "ADS_SYNC_CAMPAIGNS", authId, "sync_campaigns", auditPayload, "FAILED", ex.getMessage());
+            throw ex;
+        }
+    }
+
+    @Override
+    public List<OzonAdsReport> syncReportsFromApi(UserInfo user, String authId, LocalDate startDate, LocalDate endDate) {
+        OzonAuth auth = authAccessService.requireOwnedAuth(user, authId);
+        if (startDate == null || endDate == null) {
+            throw new IllegalArgumentException("开始日期和结束日期不能为空");
+        }
+        Date now = new Date();
+        JSONObject auditPayloadJson = new JSONObject();
+        auditPayloadJson.put("authId", authId);
+        auditPayloadJson.put("startDate", startDate.toString());
+        auditPayloadJson.put("endDate", endDate.toString());
+        String auditPayload = auditPayloadJson.toJSONString();
+
+        try {
+            JSONObject payload = new JSONObject();
+            JSONObject dateFilter = new JSONObject();
+            dateFilter.put("from", startDate.toString() + "T00:00:00Z");
+            dateFilter.put("to", endDate.toString() + "T23:59:59Z");
+            payload.put("date", dateFilter);
+            payload.put("page", 1);
+            payload.put("page_size", 1000);
+
+            String response = performanceApiClient.getReport(
+                    auth.getClientId(),
+                    credentialService.decrypt(auth.getApiKeyCiphertext()),
+                    payload.toJSONString()
+            );
+
+            JSONObject responseJson = JSON.parseObject(response);
+            JSONArray reports = responseJson.getJSONObject("result") != null
+                    ? responseJson.getJSONObject("result").getJSONArray("reports")
+                    : null;
+
+            if (reports == null || reports.isEmpty()) {
+                recordOperationAudit(auth, user, "ADS_SYNC_REPORTS", authId, "sync_reports", auditPayload, "DONE", "no reports found");
+                return Collections.emptyList();
+            }
+
+            List<OzonAdsReport> result = new ArrayList<>(reports.size());
+            String accountId = resolveAccountId(auth, responseJson);
+
+            for (int i = 0; i < reports.size(); i++) {
+                JSONObject reportItem = reports.getJSONObject(i);
+                String campaignId = requireText(firstText(reportItem, "campaign_id", "campaignId"), "campaignId不能为空");
+                LocalDate reportDate = LocalDate.parse(requireText(firstText(reportItem, "date", "report_date", "reportDate"), "reportDate不能为空"));
+
+                OzonAdsReport existingReport = reportMapper.selectOne(new QueryWrapper<OzonAdsReport>()
+                        .eq("auth_id", auth.getId())
+                        .eq("campaign_id", campaignId)
+                        .eq("report_date", Date.from(reportDate.atStartOfDay(ZoneId.systemDefault()).toInstant()))
+                        .last("limit 1"));
+
+                if (existingReport == null) {
+                    OzonAdsReport report = new OzonAdsReport();
+                    report.setId(nextId());
+                    report.setAuthId(auth.getId());
+                    report.setShopId(auth.getShopId());
+                    report.setAccountId(accountId);
+                    report.setCampaignId(campaignId);
+                    report.setReportDate(Date.from(reportDate.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+                    report.setImpressions(parseLong(firstText(reportItem, "impressions")));
+                    report.setClicks(parseLong(firstText(reportItem, "clicks")));
+                    report.setSpend(parseDecimal(firstText(reportItem, "spend")));
+                    report.setOrders(parseLong(firstText(reportItem, "orders")));
+                    report.setSales(parseDecimal(firstText(reportItem, "sales", "revenue")));
+                    report.setCtr(parseDecimal(firstText(reportItem, "ctr")));
+                    report.setCpc(parseDecimal(firstText(reportItem, "cpc")));
+                    report.setAcos(parseDecimal(firstText(reportItem, "acos")));
+                    report.setRoas(parseDecimal(firstText(reportItem, "roas")));
+                    report.setRawLineJson(reportItem.toJSONString());
+                    report.setCreateTime(now);
+                    reportMapper.upsert(report);
+                    result.add(report);
+                }
+            }
+
+            recordOperationAudit(auth, user, "ADS_SYNC_REPORTS", authId, "sync_reports", auditPayload, "DONE", "synced " + result.size() + " reports");
+            return result;
+        } catch (RuntimeException ex) {
+            recordOperationAudit(auth, user, "ADS_SYNC_REPORTS", authId, "sync_reports", auditPayload, "FAILED", ex.getMessage());
+            throw ex;
+        }
+    }
+
+    private String resolveAccountId(OzonAuth auth, JSONObject responseJson) {
+        String accountId = firstText(responseJson, "account_id", "accountId");
+        if (StrUtil.isBlank(accountId) && responseJson != null) {
+            JSONObject result = responseJson.getJSONObject("result");
+            accountId = firstText(result, "account_id", "accountId");
+        }
+        if (StrUtil.isNotBlank(accountId)) {
+            return accountId;
+        }
+        List<OzonAdsAccount> accounts = accountMapper.selectList(new QueryWrapper<OzonAdsAccount>()
+                .eq("auth_id", auth.getId())
+                .orderByDesc("update_time")
+                .last("limit 1"));
+        if (accounts != null && !accounts.isEmpty()) {
+            return accounts.get(0).getAccountId();
+        }
+        throw new IllegalStateException("未配置有效的 Ozon Performance 广告账号 ID");
     }
 }

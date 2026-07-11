@@ -1,0 +1,18 @@
+spring:
+  profiles:
+    active: test
+  autoconfigure:
+    exclude:
+      - io.seata.spring.boot.autoconfigure.SeataAutoConfiguration
+      - io.seata.spring.boot.autoconfigure.SeataCoreAutoConfiguration
+  cloud:
+    bootstrap:
+      enabled: false
+    nacos:
+      discovery:
+        enabled: false
+      config:
+        enabled: false
+seata:
+  enabled: false
+  enable-auto-data-source-proxy: false

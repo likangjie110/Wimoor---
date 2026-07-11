@@ -6,8 +6,8 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONObject;
 import com.wimoor.ozon.auth.mapper.OzonAuthMapper;
 import com.wimoor.ozon.auth.pojo.entity.OzonAuth;
 import com.wimoor.ozon.client.OzonRemoteWarehouse;
@@ -103,6 +103,23 @@ public class OzonWarehouseSyncServiceImpl implements IOzonWarehouseSyncService {
         warehouse.setRawData(JSONObject.toJSONString(remoteWarehouse));
         warehouse.setSyncedAt(syncedAt);
         return warehouse;
+    }
+
+    @Override
+    public int countByAuth(String authId) {
+        if (StrUtil.isBlank(authId)) {
+            return 0;
+        }
+        return warehouseMapper.countByAuthId(authId);
+    }
+
+    @Override
+    public String getDefaultWarehouseName(String authId) {
+        if (StrUtil.isBlank(authId)) {
+            return null;
+        }
+        OzonWarehouse defaultWarehouse = warehouseMapper.selectDefaultByAuthId(authId);
+        return defaultWarehouse != null ? defaultWarehouse.getName() : null;
     }
 
     private void recordApiLog(

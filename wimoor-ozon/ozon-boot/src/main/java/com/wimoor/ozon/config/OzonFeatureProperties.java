@@ -16,7 +16,9 @@ public class OzonFeatureProperties {
     private boolean task = true;
     private boolean error = true;
     private boolean finance = true;
+    private boolean financeSync = false;
     private boolean chat = true;
+    private boolean chatSync = false;
     private boolean ads = true;
     private boolean stockWrite = false;
     private boolean priceWrite = false;

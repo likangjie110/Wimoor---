@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -411,7 +412,7 @@ class OzonListingDraftServiceTests {
                 store.variants.put(entity.getId(), entity);
                 return 1;
             });
-            when(variantMapper.deleteById(any())).thenAnswer(invocation -> {
+            when(variantMapper.deleteById(any(Serializable.class))).thenAnswer(invocation -> {
                 Object id = invocation.getArgument(0);
                 store.variants.remove(String.valueOf(id));
                 return 1;

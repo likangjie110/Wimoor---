@@ -64,5 +64,11 @@ export default [
     name: 'ozon_error',
     meta: { keepAlive: true },
     component: () => import('@/views/ozon/error/index.vue')
+  },
+  {
+    path: 'ozon/monitoring',
+    name: 'ozon_monitoring',
+    meta: { keepAlive: true },
+    component: () => import('@/views/ozon/monitoring/Dashboard.vue')
   }
 ]

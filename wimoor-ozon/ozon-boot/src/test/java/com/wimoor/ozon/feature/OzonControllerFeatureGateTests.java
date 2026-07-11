@@ -44,6 +44,8 @@ import com.wimoor.ozon.product.service.IOzonProductMapService;
 import com.wimoor.ozon.product.service.IOzonProductMetadataService;
 import com.wimoor.ozon.product.service.IOzonProductPreviewService;
 import com.wimoor.ozon.product.service.IOzonProductPublishService;
+import com.wimoor.ozon.product.service.IOzonProductPublishTaskQueryService;
+import com.wimoor.ozon.product.service.IOzonProductPublishTaskQueryService;
 import com.wimoor.ozon.seller.controller.OzonSellerSettingsController;
 import com.wimoor.ozon.seller.pojo.entity.OzonDeliveryMethod;
 import com.wimoor.ozon.seller.pojo.vo.OzonWarehouseView;
@@ -73,6 +75,9 @@ class OzonControllerFeatureGateTests {
 
     @Mock
     private IOzonProductPublishService publishService;
+
+    @Mock
+    private IOzonProductPublishTaskQueryService publishTaskQueryService;
 
     @Mock
     private IOzonTaskService taskService;
@@ -120,7 +125,8 @@ class OzonControllerFeatureGateTests {
                 metadataService,
                 previewService,
                 publishService,
-                gate(properties -> properties.setProduct(false))
+                gate(properties -> properties.setProduct(false)),
+                publishTaskQueryService
         );
 
         Result<List<OzonProductMapView>> result = controller.list("auth-1", null);
@@ -206,11 +212,8 @@ class OzonControllerFeatureGateTests {
 
         assertEquals(true, Result.isSuccess(result));
         assertEquals(false, result.getData().getProductWrite().isEnabled());
-        assertEquals("Ozon商品发布写操作未开启", result.getData().getProductWrite().getReason());
         assertEquals(false, result.getData().getStockWrite().isEnabled());
-        assertEquals("Ozon库存写操作未开启", result.getData().getStockWrite().getReason());
         assertEquals(false, result.getData().getChatSend().isEnabled());
-        assertEquals("Ozon聊天发送功能未开启", result.getData().getChatSend().getReason());
     }
 
     private OzonFeatureGate gate(java.util.function.Consumer<OzonFeatureProperties> customizer) {

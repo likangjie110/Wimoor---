@@ -3,12 +3,14 @@ package com.wimoor.ozon.error.service.impl;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.wimoor.common.user.UserInfo;
 import com.wimoor.ozon.auth.pojo.entity.OzonAuth;
@@ -33,6 +35,7 @@ public class OzonErrorCenterServiceImpl implements IOzonErrorCenterService {
     private final OzonErrorEventMapper errorEventMapper;
     private final IOzonPostingService postingService;
     private final IOzonShipmentService shipmentService;
+    private final Map<String, OzonErrorRetryHandler> retryHandlers = new HashMap<>();
 
     @Autowired
     public OzonErrorCenterServiceImpl(
@@ -45,6 +48,7 @@ public class OzonErrorCenterServiceImpl implements IOzonErrorCenterService {
         this.errorEventMapper = errorEventMapper;
         this.postingService = postingService;
         this.shipmentService = shipmentService;
+        registerRetryHandlers();
     }
 
     @Override
@@ -78,13 +82,11 @@ public class OzonErrorCenterServiceImpl implements IOzonErrorCenterService {
         Date now = new Date();
         int nextRetryCount = (event.getRetryCount() == null ? 0 : event.getRetryCount()) + 1;
         try {
-            if (OzonErrorSourceType.POSTING.equals(event.getSourceType())) {
-                postingService.retryOne(user, event.getAuthId(), event.getObjectId());
-            } else if (OzonErrorSourceType.SHIPMENT.equals(event.getSourceType())) {
-                shipmentService.pushTracking(user, parseShipmentCommand(event));
-            } else {
-                throw new IllegalArgumentException("暂不支持该错误类型重试");
+            OzonErrorRetryHandler handler = retryHandlers.get(event.getSourceType());
+            if (handler == null) {
+                throw new IllegalArgumentException("错误类型未注册重试处理器：" + event.getSourceType());
             }
+            handler.retry(user, event);
             event.setStatus(OzonErrorStatus.RESOLVED);
             event.setRetryCount(nextRetryCount);
             event.setLastRetryAt(now);
@@ -138,6 +140,36 @@ public class OzonErrorCenterServiceImpl implements IOzonErrorCenterService {
             throw new IllegalArgumentException("履约重试载荷不完整");
         }
         return new OzonShipmentPushCommand(authId, postingId, trackingNumber, trim(payload.getString("deliveryService")));
+    }
+
+    private void registerRetryHandlers() {
+        retryHandlers.put(OzonErrorSourceType.POSTING,
+                (user, event) -> postingService.retryOne(user, event.getAuthId(), event.getObjectId()));
+        retryHandlers.put(OzonErrorSourceType.SHIPMENT,
+                (user, event) -> shipmentService.pushTracking(user, parseShipmentCommand(event)));
+        retryHandlers.put(OzonErrorSourceType.PRODUCT,
+                nonRetryable("商品错误暂不支持自动重试，请在商品工作台重新发布或同步"));
+        retryHandlers.put(OzonErrorSourceType.STOCK,
+                nonRetryable("库存错误暂不支持自动重试，请在库存工作台重新推送"));
+        retryHandlers.put(OzonErrorSourceType.PRICE,
+                nonRetryable("价格错误暂不支持自动重试，请在价格工作台重新推送"));
+        retryHandlers.put(OzonErrorSourceType.FINANCE,
+                nonRetryable("财务错误暂不支持自动重试，请在财务工作台重新同步或导入"));
+        retryHandlers.put(OzonErrorSourceType.CHAT,
+                nonRetryable("聊天错误暂不支持自动重试，请在聊天工作台重新同步或发送"));
+        retryHandlers.put(OzonErrorSourceType.ADS,
+                nonRetryable("广告错误暂不支持自动重试，请在广告工作台重新同步"));
+    }
+
+    private OzonErrorRetryHandler nonRetryable(String reason) {
+        return (user, event) -> {
+            throw new IllegalArgumentException(reason);
+        };
+    }
+
+    @FunctionalInterface
+    private interface OzonErrorRetryHandler {
+        void retry(UserInfo user, OzonErrorEvent event);
     }
 
     private boolean matchesKeyword(OzonErrorEvent event, String keyword) {

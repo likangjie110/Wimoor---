@@ -20,8 +20,8 @@
           </div>
         </div>
         <el-space>
-          <el-button :disabled="!query.authId || !actionMaterialSku" @click="goToPriceCenter">前往价格中心</el-button>
-          <el-button :disabled="!query.authId || !actionMaterialSku" @click="goToStockCenter">前往库存中心</el-button>
+          <el-button :disabled="!query.authId || !actionMaterialSku" data-testid="btn-goto-price" @click="goToPriceCenter">前往价格中心</el-button>
+          <el-button :disabled="!query.authId || !actionMaterialSku" data-testid="btn-goto-stock" @click="goToStockCenter">前往库存中心</el-button>
         </el-space>
       </div>
     </el-card>
@@ -29,6 +29,7 @@
     <el-row :gutter="16">
       <el-col :xs="24" :lg="7">
         <DraftSidebar
+          data-testid="product-draft-list"
           :auth-options="authOptions"
           :auth-id="query.authId"
           :drafts="localizedDrafts"
@@ -67,7 +68,7 @@
         <div ref="previewSectionRef">
           <PreviewPanel :preview="previewResult" />
         </div>
-        <div ref="publishSectionRef">
+        <div ref="publishSectionRef" data-testid="publish-area">
           <PublishTaskPanel
             :draft-id="selectedDraftId"
             :task-id="draftForm.lastPublishTaskId"

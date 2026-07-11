@@ -55,7 +55,10 @@
       <template #header>
         <div class="card-title">
           <span>库存任务</span>
-          <el-button @click="loadTasks">刷新任务</el-button>
+          <el-space>
+            <el-button @click="loadTasks">刷新任务</el-button>
+            <el-button @click="showTaskHistory">查看历史</el-button>
+          </el-space>
         </div>
       </template>
 
@@ -73,6 +76,13 @@
         </el-table-column>
       </el-table>
     </el-card>
+
+    <!-- 任务历史面板 -->
+    <StockTaskHistoryPanel
+      v-model="taskHistoryVisible"
+      :auth-id="form.authId"
+      :limit="50"
+    />
 
     <el-card shadow="never">
       <template #header>
@@ -107,6 +117,7 @@ import authApi from '@/api/ozon/auth/authApi.js';
 import stockApi from '@/api/ozon/stock/stockApi.js';
 import { dateFormat } from '@/utils/index.js';
 import OzonFeatureNotice from '../components/OzonFeatureNotice.vue';
+import StockTaskHistoryPanel from './components/StockTaskHistoryPanel.vue';
 import { useOzonFeatures } from '../composables/useOzonFeatures.js';
 
 const route = useRoute();
@@ -118,6 +129,7 @@ const snapshotData = ref([]);
 const taskData = ref([]);
 const payloadText = ref('');
 const form = reactive({ authId: '', warehouseId: '' });
+const taskHistoryVisible = ref(false);
 const { features, loadFeatures, isEnabled, reason } = useOzonFeatures();
 
 const materialSkuHint = computed(() => normalizeQuery(route.query.materialSku));
@@ -268,6 +280,14 @@ function goToProduct() {
       focus: 'publish'
     }
   });
+}
+
+function showTaskHistory() {
+  if (!form.authId) {
+    ElMessage.warning('请先选择授权店铺');
+    return;
+  }
+  taskHistoryVisible.value = true;
 }
 
 function normalizeQuery(value) {

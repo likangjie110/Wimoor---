@@ -14,6 +14,7 @@ import com.wimoor.ozon.ops.pojo.dto.OzonApiLogQuery;
 import com.wimoor.ozon.ops.pojo.dto.OzonOperationAuditQuery;
 import com.wimoor.ozon.ops.pojo.entity.OzonApiLog;
 import com.wimoor.ozon.ops.pojo.entity.OzonOperationAudit;
+import com.wimoor.ozon.ops.pojo.vo.OzonOpsDashboardView;
 import com.wimoor.ozon.ops.pojo.vo.OzonOpsSummaryView;
 import com.wimoor.ozon.ops.service.IOzonOpsService;
 
@@ -32,6 +33,14 @@ public class OzonOpsController {
         return execute(() -> {
             featureGate.assertAuthEnabled();
             return opsService.summary(currentUser(), authId);
+        });
+    }
+
+    @GetMapping("/dashboard")
+    public Result<OzonOpsDashboardView> dashboard(String authId) {
+        return execute(() -> {
+            featureGate.assertAuthEnabled();
+            return opsService.dashboard(currentUser(), authId);
         });
     }
 

@@ -17,9 +17,9 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONArray;
+import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.wimoor.common.result.Result;
 import com.wimoor.common.user.UserInfo;
@@ -34,6 +34,7 @@ import com.wimoor.ozon.config.OzonFeatureGate;
 import com.wimoor.ozon.error.pojo.dto.OzonErrorRecordCommand;
 import com.wimoor.ozon.error.pojo.entity.OzonErrorSourceType;
 import com.wimoor.ozon.error.service.OzonErrorRecorder;
+import com.wimoor.ozon.ops.annotation.OzonAudit;
 import com.wimoor.ozon.ops.pojo.dto.OzonApiLogRecordCommand;
 import com.wimoor.ozon.ops.pojo.dto.OzonOperationAuditRecordCommand;
 import com.wimoor.ozon.ops.service.IOzonOpsService;
@@ -160,6 +161,7 @@ public class OzonPostingServiceImpl implements IOzonPostingService {
     }
 
     @Override
+    @OzonAudit(operationType = "SYNC", objectType = "POSTING", description = "增量同步订单")
     public OzonPostingSyncResult syncIncremental(UserInfo user, OzonPostingSyncCommand command) {
         featureGate.assertPostingWriteEnabled();
         OzonAuth auth = authAccessService.requireOwnedAuth(user, command.getAuthId());
@@ -845,6 +847,72 @@ public class OzonPostingServiceImpl implements IOzonPostingService {
                 resultMessage,
                 user == null ? null : user.getId()
         ));
+    }
+
+    @Override
+    @OzonAudit(operationType = "ASSIGN", objectType = "POSTING", description = "分配配送方式")
+    public void assignDeliveryMethod(UserInfo user, String authId, String postingId, String deliveryMethodId) {
+        OzonAuth auth = authAccessService.requireOwnedAuth(user, authId);
+        if (StrUtil.isBlank(postingId)) {
+            throw new IllegalArgumentException("postingId不能为空");
+        }
+        OzonPosting posting = postingMapper.selectById(postingId.trim());
+        if (posting == null || !StrUtil.equals(posting.getAuthId(), auth.getId())) {
+            throw new IllegalArgumentException("Ozon posting不存在");
+        }
+
+        posting.setDeliveryMethodId(StrUtil.isBlank(deliveryMethodId) ? null : deliveryMethodId.trim());
+        posting.setUpdateTime(new Date());
+        postingMapper.updateById(posting);
+
+        recordOperationAudit(
+                auth,
+                user,
+                "POSTING_ASSIGN_DELIVERY_METHOD",
+                "POSTING",
+                posting.getId(),
+                posting.getPostingNumber(),
+                deliveryMethodId,
+                "SUCCESS",
+                "assigned delivery method"
+        );
+    }
+
+    @Override
+    public List<OzonPostingView> getPostingsByDeliveryMethod(UserInfo user, String authId, String deliveryMethodId) {
+        OzonAuth auth = authAccessService.requireOwnedAuth(user, authId);
+        if (StrUtil.isBlank(deliveryMethodId)) {
+            throw new IllegalArgumentException("deliveryMethodId不能为空");
+        }
+
+        List<OzonPosting> postings = postingMapper.selectList(new QueryWrapper<OzonPosting>()
+                .eq("auth_id", auth.getId())
+                .eq("delivery_method_id", deliveryMethodId.trim())
+                .orderByDesc("order_created_at"));
+
+        return postings.stream()
+                .map(this::toPostingView)
+                .collect(Collectors.toList());
+    }
+
+    private OzonPostingView toPostingView(OzonPosting posting) {
+        if (posting == null) {
+            return null;
+        }
+        OzonPostingView view = new OzonPostingView();
+        view.setId(posting.getId());
+        view.setPostingNumber(posting.getPostingNumber());
+        view.setFulfillmentType(posting.getFulfillmentType());
+        view.setPostingStatus(posting.getPostingStatus());
+        view.setSubstatus(posting.getSubstatus());
+        view.setWarehouseId(posting.getWarehouseId());
+        view.setErpOrderId(posting.getErpOrderId());
+        view.setBridgeStatus(posting.getBridgeStatus());
+        view.setRawPayloadJson(posting.getCustomerPayloadJson());
+        view.setOrderCreatedAt(posting.getOrderCreatedAt());
+        view.setShipmentDeadlineAt(posting.getShipmentDeadlineAt());
+        view.setSyncVersion(posting.getSyncVersion());
+        return view;
     }
 
     private static class SyncWindow {

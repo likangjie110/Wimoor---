@@ -26,6 +26,7 @@ import com.wimoor.ozon.product.service.IOzonProductMapService;
 import com.wimoor.ozon.product.service.IOzonProductMetadataService;
 import com.wimoor.ozon.product.service.IOzonProductPreviewService;
 import com.wimoor.ozon.product.service.IOzonProductPublishService;
+import com.wimoor.ozon.product.service.IOzonProductPublishTaskQueryService;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 
@@ -47,6 +48,9 @@ class OzonProductControllerFeatureTests {
     @Mock
     private IOzonProductPublishService publishService;
 
+    @Mock
+    private IOzonProductPublishTaskQueryService publishTaskQueryService;
+
     @BeforeEach
     void setUp() {
         UserInfoContext.set(buildUser());
@@ -65,7 +69,8 @@ class OzonProductControllerFeatureTests {
                 metadataService,
                 previewService,
                 publishService,
-                gate(properties -> properties.setProductWrite(false))
+                gate(properties -> properties.setProductWrite(false)),
+                publishTaskQueryService
         );
 
         Result<OzonProductPublishView> result = controller.publish(new OzonProductPublishCommand("auth-1", "draft-1"));
@@ -83,7 +88,8 @@ class OzonProductControllerFeatureTests {
                 metadataService,
                 previewService,
                 publishService,
-                gate(properties -> properties.setProduct(true))
+                gate(properties -> properties.setProduct(true)),
+                publishTaskQueryService
         );
         when(metadataService.getCategoryTree(any(), eq("auth-1"), eq("book"), eq("EN")))
                 .thenReturn(new com.wimoor.ozon.product.pojo.vo.OzonProductCategoryTreeView());
@@ -101,7 +107,8 @@ class OzonProductControllerFeatureTests {
                 metadataService,
                 previewService,
                 publishService,
-                gate(properties -> properties.setProduct(false))
+                gate(properties -> properties.setProduct(false)),
+                publishTaskQueryService
         );
 
         Result<java.util.List<OzonProductPublishTaskHistoryView>> result = controller.publishTaskList("auth-1", "draft-1");

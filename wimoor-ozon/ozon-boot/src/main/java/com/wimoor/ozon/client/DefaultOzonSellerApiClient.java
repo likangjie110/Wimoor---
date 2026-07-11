@@ -10,8 +10,8 @@ import org.apache.http.HttpException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson2.JSONArray;
+import com.alibaba.fastjson2.JSONObject;
 import com.wimoor.common.HttpClientUtil;
 
 import cn.hutool.core.util.StrUtil;
@@ -25,6 +25,16 @@ public class DefaultOzonSellerApiClient implements OzonSellerApiClient {
     private static final String STOCK_IMPORT_PATH = "/v2/products/stocks";
     private static final String TRACKING_NUMBER_SET_PATH = "/v2/fbs/posting/tracking-number/set";
     private static final String CHAT_SEND_MESSAGE_PATH = "/v1/chat/send/message";
+    private static final String POSTING_CANCEL_PATH = "/v2/posting/fbs/cancel";
+    private static final String RETURNS_LIST_PATH = "/v3/returns/company/fbs";
+    private static final String POSTING_PACKAGES_PATH = "/v1/posting/fbs/package";
+    private static final String FINANCE_TRANSACTION_LIST_PATH = "/v2/finance/transaction/list";
+    private static final String FINANCE_REALIZATION_LIST_PATH = "/v2/finance/realization/product/list";
+    private static final String FINANCE_REPORT_INFO_PATH = "/v1/report/info";
+    private static final String CHAT_LIST_PATH = "/v1/chat/list";
+    private static final String CHAT_HISTORY_PATH = "/v1/chat/history";
+    private static final String ADS_CAMPAIGN_LIST_PATH = "/v1/performance/campaign/list";
+    private static final String ADS_REPORT_PATH = "/v1/performance/report";
 
     private final String baseUrl;
 
@@ -110,6 +120,96 @@ public class DefaultOzonSellerApiClient implements OzonSellerApiClient {
     public String sendChatMessage(String clientId, String apiKey, String payload) {
         try {
             return postJson(CHAT_SEND_MESSAGE_PATH, payload, clientId, apiKey);
+        } catch (HttpException ex) {
+            throw new IllegalStateException(ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    public String cancelPosting(String clientId, String apiKey, String payload) {
+        try {
+            return postJson(POSTING_CANCEL_PATH, payload, clientId, apiKey);
+        } catch (HttpException ex) {
+            throw new IllegalStateException(ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    public String listReturns(String clientId, String apiKey, String payload) {
+        try {
+            return postJson(RETURNS_LIST_PATH, payload, clientId, apiKey);
+        } catch (HttpException ex) {
+            throw new IllegalStateException(ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    public String getPostingPackages(String clientId, String apiKey, String payload) {
+        try {
+            return postJson(POSTING_PACKAGES_PATH, payload, clientId, apiKey);
+        } catch (HttpException ex) {
+            throw new IllegalStateException(ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    public String listFinanceTransactions(String clientId, String apiKey, String payload) {
+        try {
+            return postJson(FINANCE_TRANSACTION_LIST_PATH, payload, clientId, apiKey);
+        } catch (HttpException ex) {
+            throw new IllegalStateException(ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    public String listFinanceRealizations(String clientId, String apiKey, String payload) {
+        try {
+            return postJson(FINANCE_REALIZATION_LIST_PATH, payload, clientId, apiKey);
+        } catch (HttpException ex) {
+            throw new IllegalStateException(ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    public String getFinanceReportInfo(String clientId, String apiKey, String payload) {
+        try {
+            return postJson(FINANCE_REPORT_INFO_PATH, payload, clientId, apiKey);
+        } catch (HttpException ex) {
+            throw new IllegalStateException(ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    public String listChats(String clientId, String apiKey, String payload) {
+        try {
+            return postJson(CHAT_LIST_PATH, payload, clientId, apiKey);
+        } catch (HttpException ex) {
+            throw new IllegalStateException(ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    public String getChatHistory(String clientId, String apiKey, String payload) {
+        try {
+            return postJson(CHAT_HISTORY_PATH, payload, clientId, apiKey);
+        } catch (HttpException ex) {
+            throw new IllegalStateException(ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    public String listAdsCampaigns(String clientId, String apiKey, String payload) {
+        try {
+            return postJson(ADS_CAMPAIGN_LIST_PATH, payload, clientId, apiKey);
+        } catch (HttpException ex) {
+            throw new IllegalStateException(ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    public String getAdsReport(String clientId, String apiKey, String payload) {
+        try {
+            return postJson(ADS_REPORT_PATH, payload, clientId, apiKey);
         } catch (HttpException ex) {
             throw new IllegalStateException(ex.getMessage(), ex);
         }

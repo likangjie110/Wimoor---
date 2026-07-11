@@ -21,41 +21,97 @@
       <template #header>
         <div class="card-title">
           <div>
-            <h3>Ozon 财务导入</h3>
-            <p class="font-extraSmall">导入本地 Ozon 财务 JSON 报表原文，保留导入任务、原始内容和解析后的交易明细。</p>
+            <h3>Ozon 财务工作台</h3>
+            <p class="font-extraSmall">支持本地导入和 API 同步两种模式</p>
           </div>
-          <el-button type="primary" :loading="importing" :disabled="!isEnabled('finance')" @click="submitImport">导入报表</el-button>
+          <el-radio-group v-model="workMode" size="default">
+            <el-radio-button value="local">本地导入</el-radio-button>
+            <el-radio-button value="api">API 同步</el-radio-button>
+          </el-radio-group>
         </div>
       </template>
 
-      <el-row :gutter="16">
-        <el-col :span="8">
-          <el-form-item label="授权店铺">
-            <el-select v-model="form.authId" placeholder="请选择 Ozon 授权" style="width: 100%" @change="reloadAll">
-              <el-option v-for="item in authOptions" :key="item.id" :label="item.name" :value="item.id" />
-            </el-select>
-          </el-form-item>
-        </el-col>
-        <el-col :span="8">
-          <el-form-item label="报表ID">
-            <el-input v-model="form.reportId" placeholder="例如 report-20260326-001" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="8">
-          <el-form-item label="报表日期">
-            <el-date-picker v-model="form.reportDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
-          </el-form-item>
-        </el-col>
-      </el-row>
+      <!-- 本地导入模式 -->
+      <div v-if="workMode === 'local'">
+        <el-row :gutter="16">
+          <el-col :span="8">
+            <el-form-item label="授权店铺">
+              <el-select v-model="form.authId" placeholder="请选择 Ozon 授权" style="width: 100%" @change="reloadAll">
+                <el-option v-for="item in authOptions" :key="item.id" :label="item.name" :value="item.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="报表ID">
+              <el-input v-model="form.reportId" placeholder="例如 report-20260326-001" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="报表日期">
+              <el-date-picker v-model="form.reportDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
 
-      <el-form-item label="原始 JSON">
-        <el-input
-          v-model="form.rawContent"
-          type="textarea"
-          :rows="8"
-          placeholder='{"transactions":[{"transactionId":"txn-1","operationType":"sale","postingNumber":"posting-1","amount":12.5,"currencyCode":"RUB","transactionTime":"2026-03-26T08:00:00Z"}]}'
+        <el-form-item label="原始 JSON">
+          <el-input
+            v-model="form.rawContent"
+            type="textarea"
+            :rows="8"
+            placeholder='{"transactions":[{"transactionId":"txn-1","operationType":"sale","postingNumber":"posting-1","amount":12.5,"currencyCode":"RUB","transactionTime":"2026-03-26T08:00:00Z"}]}'
+          />
+        </el-form-item>
+
+        <el-form-item>
+          <el-button type="primary" :loading="importing" :disabled="!isEnabled('finance')" @click="submitImport">导入报表</el-button>
+        </el-form-item>
+      </div>
+
+      <!-- API 同步模式 -->
+      <div v-if="workMode === 'api'">
+        <el-row :gutter="16">
+          <el-col :span="8">
+            <el-form-item label="授权店铺">
+              <el-select v-model="apiForm.authId" placeholder="请选择 Ozon 授权" style="width: 100%">
+                <el-option v-for="item in authOptions" :key="item.id" :label="item.name" :value="item.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="开始日期">
+              <el-date-picker v-model="apiForm.startDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="结束日期">
+              <el-date-picker v-model="apiForm.endDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-form-item>
+          <el-space>
+            <el-button type="primary" :loading="syncing.transactions" :disabled="!isEnabled('financeSync')" @click="syncTransactions">
+              同步交易
+            </el-button>
+            <el-button type="primary" :loading="syncing.realizations" :disabled="!isEnabled('financeSync')" @click="syncRealizations">
+              同步销售明细
+            </el-button>
+            <el-button type="primary" :loading="syncing.report" :disabled="!isEnabled('finance')" @click="fetchReport">
+              获取报告
+            </el-button>
+          </el-space>
+        </el-form-item>
+
+        <el-alert
+          v-if="!isEnabled('finance')"
+          type="warning"
+          :closable="false"
+          show-icon
+          :title="reason('finance')"
+          style="margin-top: 12px;"
         />
-      </el-form-item>
+      </div>
     </el-card>
 
     <TaskResultPanel
@@ -157,6 +213,7 @@ import { useOzonFeatures } from '../composables/useOzonFeatures.js';
 import ModeSwitchBanner from '../shared/components/ModeSwitchBanner.vue';
 import TaskResultPanel from './components/TaskResultPanel.vue';
 
+const workMode = ref('local');
 const importing = ref(false);
 const taskLoading = ref(false);
 const transactionLoading = ref(false);
@@ -168,6 +225,16 @@ const form = reactive({
   reportId: '',
   reportDate: '',
   rawContent: ''
+});
+const apiForm = reactive({
+  authId: '',
+  startDate: '',
+  endDate: ''
+});
+const syncing = reactive({
+  transactions: false,
+  realizations: false,
+  report: false
 });
 const transactionQuery = reactive({
   reportId: '',
@@ -274,6 +341,80 @@ function openRaw(row) {
 function openLine(row) {
   lineDrawer.content = row.rawLineJson || '';
   lineDrawer.visible = true;
+}
+
+function syncTransactions() {
+  if (!isEnabled('finance')) {
+    ElMessage.warning(reason('finance'));
+    return;
+  }
+  if (!apiForm.authId || !apiForm.startDate || !apiForm.endDate) {
+    ElMessage.error('请选择授权店铺、开始日期和结束日期');
+    return;
+  }
+  syncing.transactions = true;
+  financeApi.syncTransactions({
+    authId: apiForm.authId,
+    startDate: apiForm.startDate,
+    endDate: apiForm.endDate
+  }).then(res => {
+    ElMessage.success(`已从 API 同步 ${res.data?.importedCount || 0} 条交易`);
+    form.authId = apiForm.authId;
+    reloadAll();
+  }).catch(err => {
+    ElMessage.error(err.message || '同步失败');
+  }).finally(() => {
+    syncing.transactions = false;
+  });
+}
+
+function syncRealizations() {
+  if (!isEnabled('finance')) {
+    ElMessage.warning(reason('finance'));
+    return;
+  }
+  if (!apiForm.authId || !apiForm.startDate || !apiForm.endDate) {
+    ElMessage.error('请选择授权店铺、开始日期和结束日期');
+    return;
+  }
+  syncing.realizations = true;
+  financeApi.syncRealizations({
+    authId: apiForm.authId,
+    startDate: apiForm.startDate,
+    endDate: apiForm.endDate
+  }).then(res => {
+    ElMessage.success(`已从 API 同步 ${res.data?.importedCount || 0} 条销售明细`);
+    form.authId = apiForm.authId;
+    reloadAll();
+  }).catch(err => {
+    ElMessage.error(err.message || '同步失败');
+  }).finally(() => {
+    syncing.realizations = false;
+  });
+}
+
+function fetchReport() {
+  if (!isEnabled('finance')) {
+    ElMessage.warning(reason('finance'));
+    return;
+  }
+  if (!apiForm.authId) {
+    ElMessage.error('请选择授权店铺');
+    return;
+  }
+  syncing.report = true;
+  financeApi.fetchReport({
+    authId: apiForm.authId,
+    reportType: 'finance_report'
+  }).then(res => {
+    ElMessage.success('已从 API 获取报告');
+    form.authId = apiForm.authId;
+    reloadAll();
+  }).catch(err => {
+    ElMessage.error(err.message || '获取报告失败');
+  }).finally(() => {
+    syncing.report = false;
+  });
 }
 </script>
 

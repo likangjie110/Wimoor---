@@ -84,4 +84,26 @@ public class OzonListingVariant {
 
     @TableField("update_time")
     private Date updateTime;
+
+    @TableField(exist = false)
+    private BigDecimal oldPrice;
+
+    @TableField(exist = false)
+    private String vat;
+
+    public String getVariantSku() {
+        return materialSku;
+    }
+
+    public void setVariantSku(String variantSku) {
+        this.materialSku = variantSku;
+    }
+
+    public BigDecimal getPrice() {
+        return priceOverride;
+    }
+
+    public void setPrice(BigDecimal price) {
+        this.priceOverride = price;
+    }
 }

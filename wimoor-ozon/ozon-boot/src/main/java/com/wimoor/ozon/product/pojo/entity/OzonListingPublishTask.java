@@ -47,4 +47,24 @@ public class OzonListingPublishTask {
 
     @TableField("update_time")
     private Date updateTime;
+
+    @TableField(exist = false)
+    private Date completeTime;
+
+    @TableField(exist = false)
+    private Integer totalVariants;
+
+    @TableField(exist = false)
+    private Integer successCount;
+
+    @TableField(exist = false)
+    private Integer failedCount;
+
+    public String getStatus() {
+        return taskStatus;
+    }
+
+    public void setStatus(String status) {
+        this.taskStatus = status;
+    }
 }

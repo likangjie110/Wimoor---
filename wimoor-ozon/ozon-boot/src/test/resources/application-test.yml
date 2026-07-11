@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:ozon_test;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=0;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:ozon-test-schema.sql
+      data-locations: classpath:ozon-test-data.sql
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml

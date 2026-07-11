@@ -4,6 +4,8 @@ import java.util.List;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -49,6 +51,27 @@ public class OzonSellerSettingsController {
         return execute(() -> {
             featureGate.assertAuthEnabled();
             return sellerSettingsService.saveDeliveryMethod(currentUser(), command);
+        });
+    }
+
+    @PutMapping("/deliveryMethod/default")
+    public Result<OzonDeliveryMethod> setDefaultDeliveryMethod(
+            @RequestParam String authId,
+            @RequestParam String methodId) {
+        return execute(() -> {
+            featureGate.assertAuthEnabled();
+            return sellerSettingsService.setDefaultDeliveryMethod(currentUser(), authId, methodId);
+        });
+    }
+
+    @DeleteMapping("/deliveryMethod/delete")
+    public Result<Boolean> deleteDeliveryMethod(
+            @RequestParam String authId,
+            @RequestParam String methodId) {
+        return execute(() -> {
+            featureGate.assertAuthEnabled();
+            sellerSettingsService.deleteDeliveryMethod(currentUser(), authId, methodId);
+            return Boolean.TRUE;
         });
     }
 

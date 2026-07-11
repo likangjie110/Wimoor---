@@ -48,6 +48,9 @@ public class OzonPosting {
     @TableField("erp_order_id")
     private String erpOrderId;
 
+    @TableField("delivery_method_id")
+    private String deliveryMethodId;
+
     @TableField("bridge_status")
     private String bridgeStatus;
 

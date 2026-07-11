@@ -87,6 +87,30 @@ public class OzonAdsController {
         });
     }
 
+    @PostMapping("/sync/campaigns")
+    public Result<Integer> syncCampaigns(@RequestParam String authId) {
+        return execute(() -> {
+            featureGate.assertAdsEnabled();
+            featureGate.assertAdsSyncEnabled();
+            return adsService.syncCampaignsFromApi(currentUser(), authId).size();
+        });
+    }
+
+    @PostMapping("/sync/reports")
+    public Result<Integer> syncReports(
+            @RequestParam String authId,
+            @RequestParam String startDate,
+            @RequestParam String endDate
+    ) {
+        return execute(() -> {
+            featureGate.assertAdsEnabled();
+            featureGate.assertAdsSyncEnabled();
+            java.time.LocalDate start = java.time.LocalDate.parse(startDate);
+            java.time.LocalDate end = java.time.LocalDate.parse(endDate);
+            return adsService.syncReportsFromApi(currentUser(), authId, start, end).size();
+        });
+    }
+
     private UserInfo currentUser() {
         return UserInfoContext.get();
     }

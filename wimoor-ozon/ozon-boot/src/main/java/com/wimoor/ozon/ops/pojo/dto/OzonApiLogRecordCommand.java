@@ -23,4 +23,30 @@ public class OzonApiLogRecordCommand {
     private String errorMessage;
     private Long durationMs;
     private String operator;
+
+    public OzonApiLogRecordCommand(
+            String authId,
+            String shopId,
+            String apiGroup,
+            String actionName,
+            String endpoint,
+            String requestPayloadJson,
+            String responsePayloadJson,
+            String status,
+            String errorMessage,
+            long durationMs
+    ) {
+        this.authId = authId;
+        this.shopId = shopId;
+        this.apiGroup = apiGroup;
+        this.actionName = actionName;
+        this.endpoint = endpoint;
+        this.httpMethod = "POST";
+        this.objectType = apiGroup;
+        this.requestPayloadJson = requestPayloadJson;
+        this.responsePayloadJson = responsePayloadJson;
+        this.status = status;
+        this.errorMessage = errorMessage;
+        this.durationMs = durationMs;
+    }
 }

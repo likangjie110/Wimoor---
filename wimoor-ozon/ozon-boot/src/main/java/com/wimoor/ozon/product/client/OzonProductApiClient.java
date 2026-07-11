@@ -2,6 +2,8 @@ package com.wimoor.ozon.product.client;
 
 import java.util.List;
 
+import com.wimoor.ozon.ops.annotation.OzonApiLog;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -13,16 +15,20 @@ public interface OzonProductApiClient {
         return listCategoryTree(clientId, apiKey, null);
     }
 
+    @OzonApiLog(apiGroup = "Product", actionName = "listCategoryTree", objectType = "Category")
     List<CategoryNode> listCategoryTree(String clientId, String apiKey, String language);
 
     default List<AttributeTemplateItem> listAttributes(String clientId, String apiKey, Long descriptionCategoryId, Long typeId) {
         return listAttributes(clientId, apiKey, descriptionCategoryId, typeId, null);
     }
 
+    @OzonApiLog(apiGroup = "Product", actionName = "listAttributes", objectType = "Attribute")
     List<AttributeTemplateItem> listAttributes(String clientId, String apiKey, Long descriptionCategoryId, Long typeId, String language);
 
+    @OzonApiLog(apiGroup = "Product", actionName = "submitProductImport", objectType = "Product")
     String submitProductImport(String clientId, String apiKey, String requestPayloadJson);
 
+    @OzonApiLog(apiGroup = "Product", actionName = "getProductImportInfo", objectType = "Product")
     ProductImportInfo getProductImportInfo(String clientId, String apiKey, String remoteTaskId);
 
     @Data

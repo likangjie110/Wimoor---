@@ -17,7 +17,7 @@ import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
-import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson2.JSONObject;
 import com.wimoor.common.CacheConstants;
 import com.wimoor.common.user.UserInfo;
 import com.wimoor.common.user.UserInfoContext;

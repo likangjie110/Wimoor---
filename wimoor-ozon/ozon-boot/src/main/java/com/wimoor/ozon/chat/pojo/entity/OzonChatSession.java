@@ -44,4 +44,12 @@ public class OzonChatSession {
 
     @TableField("update_time")
     private Date updateTime;
+
+    public void setChatId(String chatId) {
+        this.sessionId = chatId;
+    }
+
+    public void setLastMessageTime(Date lastMessageTime) {
+        this.lastMessageAt = lastMessageTime;
+    }
 }

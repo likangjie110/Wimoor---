@@ -12,6 +12,7 @@ import com.wimoor.ozon.auth.mapper.OzonAuthMapper;
 import com.wimoor.ozon.auth.service.OzonAuthAccessService;
 import com.wimoor.ozon.auth.service.impl.OzonAuthServiceImpl;
 import com.wimoor.ozon.client.OzonSellerApiClient;
+import com.wimoor.ozon.error.service.OzonErrorRecorder;
 import com.wimoor.ozon.posting.mapper.OzonPostingItemMapper;
 import com.wimoor.ozon.posting.mapper.OzonPostingMapper;
 import com.wimoor.ozon.posting.service.impl.OzonPostingServiceImpl;
@@ -27,6 +28,9 @@ import com.wimoor.ozon.stock.mapper.OzonStockSnapshotMapper;
 import com.wimoor.ozon.stock.mapper.OzonStockTaskMapper;
 import com.wimoor.ozon.stock.service.impl.OzonStockServiceImpl;
 import com.wimoor.ozon.task.mapper.OzonSyncJobMapper;
+import com.wimoor.ozon.task.mapper.OzonSyncCursorMapper;
+import com.wimoor.ozon.shipment.mapper.OzonShipmentMapper;
+import com.wimoor.ozon.config.OzonFeatureGate;
 
 class OzonAuthServiceSpringContextTests {
 
@@ -55,6 +59,11 @@ class OzonAuthServiceSpringContextTests {
             context.registerBean(OzonPostingItemMapper.class, () -> mock(OzonPostingItemMapper.class));
             context.registerBean(OzonProductMapMapper.class, () -> mock(OzonProductMapMapper.class));
             context.registerBean(ErpClientOneFeign.class, () -> mock(ErpClientOneFeign.class));
+            context.registerBean(OzonShipmentMapper.class, () -> mock(OzonShipmentMapper.class));
+            context.registerBean(OzonSyncJobMapper.class, () -> mock(OzonSyncJobMapper.class));
+            context.registerBean(OzonSyncCursorMapper.class, () -> mock(OzonSyncCursorMapper.class));
+            context.registerBean(OzonErrorRecorder.class, () -> mock(OzonErrorRecorder.class));
+            context.registerBean(OzonFeatureGate.class, OzonFeatureGate::allEnabled);
             context.registerBean(OzonPostingServiceImpl.class);
 
             assertDoesNotThrow(context::refresh);
@@ -70,6 +79,8 @@ class OzonAuthServiceSpringContextTests {
             context.registerBean(OzonProductMapMapper.class, () -> mock(OzonProductMapMapper.class));
             context.registerBean(OzonPriceTaskMapper.class, () -> mock(OzonPriceTaskMapper.class));
             context.registerBean(OzonPriceSnapshotMapper.class, () -> mock(OzonPriceSnapshotMapper.class));
+            context.registerBean(OzonSyncJobMapper.class, () -> mock(OzonSyncJobMapper.class));
+            context.registerBean(OzonFeatureGate.class, OzonFeatureGate::allEnabled);
             context.registerBean(OzonPriceServiceImpl.class);
 
             assertDoesNotThrow(context::refresh);
@@ -99,6 +110,8 @@ class OzonAuthServiceSpringContextTests {
             context.registerBean(OzonProductMapMapper.class, () -> mock(OzonProductMapMapper.class));
             context.registerBean(OzonStockTaskMapper.class, () -> mock(OzonStockTaskMapper.class));
             context.registerBean(OzonStockSnapshotMapper.class, () -> mock(OzonStockSnapshotMapper.class));
+            context.registerBean(OzonSyncJobMapper.class, () -> mock(OzonSyncJobMapper.class));
+            context.registerBean(OzonFeatureGate.class, OzonFeatureGate::allEnabled);
             context.registerBean(OzonStockServiceImpl.class);
 
             assertDoesNotThrow(context::refresh);

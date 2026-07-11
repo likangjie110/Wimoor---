@@ -24,4 +24,9 @@ public interface IOzonChatService {
     OzonChatReplyAudit sendReply(UserInfo user, OzonChatReplyRecordCommand command);
 
     List<OzonChatReplyAudit> listReplyAudits(UserInfo user, String authId, String sessionId);
+
+    // API Sync Methods
+    OzonChatImportResult syncChatsFromApi(UserInfo user, String authId);
+
+    OzonChatImportResult syncMessagesFromApi(UserInfo user, String authId, String chatId);
 }

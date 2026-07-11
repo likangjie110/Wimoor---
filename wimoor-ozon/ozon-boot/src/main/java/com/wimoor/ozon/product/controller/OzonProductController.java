@@ -2,6 +2,7 @@ package com.wimoor.ozon.product.controller;
 
 import java.util.List;
 
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -13,6 +14,8 @@ import com.wimoor.common.result.Result;
 import com.wimoor.common.user.UserInfo;
 import com.wimoor.common.user.UserInfoContext;
 import com.wimoor.ozon.config.OzonFeatureGate;
+import com.wimoor.ozon.product.pojo.dto.OzonProductDraftArchiveCommand;
+import com.wimoor.ozon.product.pojo.dto.OzonProductDraftCloneCommand;
 import com.wimoor.ozon.product.pojo.dto.OzonProductDraftDetailQuery;
 import com.wimoor.ozon.product.pojo.dto.OzonProductDraftImportCommand;
 import com.wimoor.ozon.product.pojo.dto.OzonProductDraftListQuery;
@@ -29,6 +32,7 @@ import com.wimoor.ozon.product.pojo.vo.OzonProductDraftImportResult;
 import com.wimoor.ozon.product.pojo.vo.OzonProductDraftListView;
 import com.wimoor.ozon.product.pojo.vo.OzonProductMapView;
 import com.wimoor.ozon.product.pojo.vo.OzonProductPreviewView;
+import com.wimoor.ozon.product.pojo.vo.OzonProductPublishTaskListView;
 import com.wimoor.ozon.product.pojo.vo.OzonProductPublishTaskView;
 import com.wimoor.ozon.product.pojo.vo.OzonProductPublishTaskHistoryView;
 import com.wimoor.ozon.product.pojo.vo.OzonProductPublishView;
@@ -37,6 +41,7 @@ import com.wimoor.ozon.product.service.IOzonProductMapService;
 import com.wimoor.ozon.product.service.IOzonProductMetadataService;
 import com.wimoor.ozon.product.service.IOzonProductPreviewService;
 import com.wimoor.ozon.product.service.IOzonProductPublishService;
+import com.wimoor.ozon.product.service.IOzonProductPublishTaskQueryService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -51,6 +56,7 @@ public class OzonProductController {
     private final IOzonProductPreviewService previewService;
     private final IOzonProductPublishService publishService;
     private final OzonFeatureGate featureGate;
+    private final IOzonProductPublishTaskQueryService taskQueryService;
 
     @GetMapping("/list")
     public Result<List<OzonProductMapView>> list(@RequestParam String authId, @RequestParam(required = false) String keyword) {
@@ -159,6 +165,69 @@ public class OzonProductController {
         return execute(() -> {
             featureGate.assertProductEnabled();
             return publishService.listTaskHistory(currentUser(), authId, draftId);
+        });
+    }
+
+    // ========== 草稿生命周期管理接口 ==========
+
+    @PostMapping("/draft/clone")
+    public Result<OzonProductDraftDetailView> cloneDraft(@RequestBody OzonProductDraftCloneCommand command) {
+        return execute(() -> {
+            featureGate.assertProductEnabled();
+            return listingDraftService.cloneDraft(currentUser(), command);
+        });
+    }
+
+    @PostMapping("/draft/archive")
+    public Result<Void> archiveDraft(@RequestBody OzonProductDraftArchiveCommand command) {
+        return execute(() -> {
+            featureGate.assertProductEnabled();
+            listingDraftService.archiveDraft(currentUser(), command);
+            return null;
+        });
+    }
+
+    @DeleteMapping("/draft/delete")
+    public Result<Void> deleteDraft(@RequestParam String authId, @RequestParam String draftId) {
+        return execute(() -> {
+            featureGate.assertProductEnabled();
+            listingDraftService.deleteDraft(currentUser(), authId, draftId);
+            return null;
+        });
+    }
+
+    @GetMapping("/draft/listByStatus")
+    public Result<List<OzonProductDraftListView>> listDraftsByStatus(
+            @RequestParam String authId,
+            @RequestParam(required = false) String status
+    ) {
+        return execute(() -> {
+            featureGate.assertProductEnabled();
+            return listingDraftService.listByStatus(currentUser(), authId, status);
+        });
+    }
+
+    // ========== 任务历史查询接口 ==========
+
+    @GetMapping("/publish/task/history")
+    public Result<List<OzonProductPublishTaskListView>> getTaskHistory(
+            @RequestParam String authId,
+            @RequestParam String draftId
+    ) {
+        return execute(() -> {
+            featureGate.assertProductEnabled();
+            return taskQueryService.listByDraft(currentUser(), authId, draftId);
+        });
+    }
+
+    @GetMapping("/publish/task/query/detail")
+    public Result<OzonProductPublishTaskListView> getTaskDetailNew(
+            @RequestParam String authId,
+            @RequestParam String taskId
+    ) {
+        return execute(() -> {
+            featureGate.assertProductEnabled();
+            return taskQueryService.getTaskDetail(currentUser(), authId, taskId);
         });
     }
 

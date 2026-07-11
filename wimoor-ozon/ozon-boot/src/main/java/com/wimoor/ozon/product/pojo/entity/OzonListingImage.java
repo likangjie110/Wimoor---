@@ -47,4 +47,7 @@ public class OzonListingImage {
 
     @TableField("update_time")
     private Date updateTime;
+
+    @TableField(exist = false)
+    private String imageType;
 }

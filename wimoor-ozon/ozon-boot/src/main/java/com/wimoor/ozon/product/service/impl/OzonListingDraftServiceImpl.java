@@ -12,7 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.wimoor.common.user.UserInfo;
 import com.wimoor.common.result.Result;
@@ -20,11 +20,14 @@ import com.wimoor.erp.api.ErpClientOneFeign;
 import com.wimoor.ozon.auth.mapper.OzonAuthMapper;
 import com.wimoor.ozon.auth.pojo.entity.OzonAuth;
 import com.wimoor.ozon.auth.service.OzonAuthAccessService;
+import com.wimoor.ozon.ops.annotation.OzonAudit;
 import com.wimoor.ozon.product.mapper.OzonListingAttributeMapper;
 import com.wimoor.ozon.product.mapper.OzonListingDraftMapper;
 import com.wimoor.ozon.product.mapper.OzonListingImageMapper;
 import com.wimoor.ozon.product.mapper.OzonListingPublishTaskMapper;
 import com.wimoor.ozon.product.mapper.OzonListingVariantMapper;
+import com.wimoor.ozon.product.pojo.dto.OzonProductDraftArchiveCommand;
+import com.wimoor.ozon.product.pojo.dto.OzonProductDraftCloneCommand;
 import com.wimoor.ozon.product.pojo.dto.OzonProductDraftDetailQuery;
 import com.wimoor.ozon.product.pojo.dto.OzonProductDraftImportCommand;
 import com.wimoor.ozon.product.pojo.dto.OzonProductDraftListQuery;
@@ -57,6 +60,7 @@ public class OzonListingDraftServiceImpl implements IOzonListingDraftService {
     private final OzonListingImageMapper imageMapper;
     private final OzonListingPublishTaskMapper publishTaskMapper;
     private final ErpClientOneFeign erpClientOneFeign;
+    private final OzonListingDraftLifecycleService draftLifecycleService;
 
     @Autowired
     public OzonListingDraftServiceImpl(
@@ -66,7 +70,8 @@ public class OzonListingDraftServiceImpl implements IOzonListingDraftService {
             OzonListingAttributeMapper attributeMapper,
             OzonListingImageMapper imageMapper,
             OzonListingPublishTaskMapper publishTaskMapper,
-            ErpClientOneFeign erpClientOneFeign
+            ErpClientOneFeign erpClientOneFeign,
+            OzonListingDraftLifecycleService draftLifecycleService
     ) {
         this.authAccessService = authAccessService;
         this.draftMapper = draftMapper;
@@ -75,6 +80,7 @@ public class OzonListingDraftServiceImpl implements IOzonListingDraftService {
         this.imageMapper = imageMapper;
         this.publishTaskMapper = publishTaskMapper;
         this.erpClientOneFeign = erpClientOneFeign;
+        this.draftLifecycleService = draftLifecycleService;
     }
 
     public OzonListingDraftServiceImpl(
@@ -86,11 +92,12 @@ public class OzonListingDraftServiceImpl implements IOzonListingDraftService {
             OzonListingPublishTaskMapper publishTaskMapper,
             ErpClientOneFeign erpClientOneFeign
     ) {
-        this(new OzonAuthAccessService(authMapper), draftMapper, variantMapper, attributeMapper, imageMapper, publishTaskMapper, erpClientOneFeign);
+        this(new OzonAuthAccessService(authMapper), draftMapper, variantMapper, attributeMapper, imageMapper, publishTaskMapper, erpClientOneFeign, null);
     }
 
     @Override
     @Transactional
+    @OzonAudit(operationType = "SAVE", objectType = "PRODUCT_DRAFT", description = "保存商品草稿")
     public OzonProductDraftDetailView saveDraft(UserInfo user, OzonProductDraftSaveCommand command) {
         OzonAuth auth = authAccessService.requireOwnedAuth(user, command == null ? null : command.getAuthId());
         validateDraft(command);
@@ -111,6 +118,7 @@ public class OzonListingDraftServiceImpl implements IOzonListingDraftService {
 
     @Override
     @Transactional
+    @OzonAudit(operationType = "IMPORT", objectType = "PRODUCT_DRAFT", description = "导入商品草稿")
     public OzonProductDraftImportResult importDraft(UserInfo user, OzonProductDraftImportCommand command) {
         OzonAuth auth = authAccessService.requireOwnedAuth(user, command == null ? null : command.getAuthId());
         List<String> skus = cleanSkus(command == null ? null : command.getSkus());
@@ -198,6 +206,28 @@ public class OzonListingDraftServiceImpl implements IOzonListingDraftService {
     public OzonProductDraftDetailView getDraftDetail(UserInfo user, OzonProductDraftDetailQuery query) {
         OzonAuth auth = authAccessService.requireOwnedAuth(user, query == null ? null : query.getAuthId());
         return loadDetail(auth.getId(), query == null ? null : query.getDraftId());
+    }
+
+    @Override
+    public OzonProductDraftDetailView cloneDraft(UserInfo user, OzonProductDraftCloneCommand command) {
+        OzonProductDraftDetailView detail = draftLifecycleService.cloneDraft(user, command);
+        return detail != null ? detail : getDraftDetail(user, new OzonProductDraftDetailQuery(command.getAuthId(), command.getSourceDraftId()));
+    }
+
+    @Override
+    public void archiveDraft(UserInfo user, OzonProductDraftArchiveCommand command) {
+        draftLifecycleService.archiveDraft(user, command);
+    }
+
+    @Override
+    public void deleteDraft(UserInfo user, String authId, String draftId) {
+        draftLifecycleService.deleteDraft(user, authId, draftId);
+    }
+
+    @Override
+    public List<OzonProductDraftListView> listByStatus(UserInfo user, String authId, String status) {
+        OzonProductDraftListQuery query = new OzonProductDraftListQuery(authId, status, null);
+        return listDrafts(user, query);
     }
 
     private void validateDraft(OzonProductDraftSaveCommand command) {

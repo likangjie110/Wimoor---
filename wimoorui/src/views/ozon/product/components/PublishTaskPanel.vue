@@ -6,6 +6,7 @@
         <el-space>
           <el-button @click="$emit('preview')" :disabled="moduleDisabled" :title="moduleDisabled ? moduleDisabledReason : ''">预览</el-button>
           <el-button @click="$emit('refresh-task')" :disabled="!taskId || moduleDisabled" :title="moduleDisabled ? moduleDisabledReason : ''">刷新任务</el-button>
+          <el-button @click="openTaskHistory" :disabled="!draftId || !authId" type="default">查看历史</el-button>
           <el-button
             type="primary"
             @click="$emit('publish')"
@@ -44,7 +45,7 @@
       </el-table-column>
     </el-table>
 
-    <el-divider content-position="left">发布任务历史</el-divider>
+    <el-divider content-position="left">最近发布任务</el-divider>
 
     <el-table
       v-if="taskHistory?.length"
@@ -70,13 +71,23 @@
     </el-table>
 
     <el-empty v-else-if="taskHistoryLoaded" description="暂无发布任务历史" :image-size="56" />
+
+    <!-- 任务历史 Drawer -->
+    <TaskHistoryDrawer
+      v-model="taskHistoryDrawerVisible"
+      :auth-id="authId"
+      :draft-id="draftId"
+    />
   </el-card>
 </template>
 
 <script setup>
+import { ref } from 'vue';
 import { dateFormat } from '@/utils/index.js';
+import TaskHistoryDrawer from './TaskHistoryDrawer.vue';
 
 defineProps({
+  authId: { type: String, default: '' },
   draftId: { type: String, default: '' },
   taskId: { type: String, default: '' },
   taskResult: { type: Object, default: null },
@@ -89,6 +100,12 @@ defineProps({
 });
 
 defineEmits(['preview', 'publish', 'refresh-task', 'select-task']);
+
+const taskHistoryDrawerVisible = ref(false);
+
+function openTaskHistory() {
+  taskHistoryDrawerVisible.value = true;
+}
 
 function formatTime(value) {
   return value ? dateFormat(value) : '-';

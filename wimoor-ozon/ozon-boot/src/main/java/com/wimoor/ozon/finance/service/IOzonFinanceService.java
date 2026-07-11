@@ -1,5 +1,6 @@
 package com.wimoor.ozon.finance.service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import com.wimoor.common.user.UserInfo;
@@ -18,4 +19,11 @@ public interface IOzonFinanceService {
     List<OzonFinTransaction> listTransactions(UserInfo user, OzonFinanceTransactionQuery query);
 
     String getRawContent(UserInfo user, String authId, String taskId);
+
+    // API Sync Methods
+    OzonFinanceImportResult syncTransactionsFromApi(UserInfo user, String authId, LocalDate startDate, LocalDate endDate);
+
+    OzonFinanceImportResult syncRealizationsFromApi(UserInfo user, String authId, LocalDate startDate, LocalDate endDate);
+
+    OzonFinanceImportResult fetchReportFromApi(UserInfo user, String authId, String reportType);
 }

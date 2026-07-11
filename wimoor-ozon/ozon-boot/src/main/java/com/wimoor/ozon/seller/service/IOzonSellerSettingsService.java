@@ -14,4 +14,8 @@ public interface IOzonSellerSettingsService {
     List<OzonDeliveryMethod> listDeliveryMethods(UserInfo user, String authId);
 
     OzonDeliveryMethod saveDeliveryMethod(UserInfo user, OzonDeliveryMethodSaveCommand command);
+
+    OzonDeliveryMethod setDefaultDeliveryMethod(UserInfo user, String authId, String methodId);
+
+    void deleteDeliveryMethod(UserInfo user, String authId, String methodId);
 }

@@ -8,7 +8,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.wimoor.common.user.UserInfo;
 import com.wimoor.ozon.auth.mapper.OzonAuthMapper;
@@ -16,6 +16,8 @@ import com.wimoor.ozon.auth.pojo.entity.OzonAuth;
 import com.wimoor.ozon.auth.service.OzonAuthAccessService;
 import com.wimoor.ozon.ops.pojo.dto.OzonOperationAuditRecordCommand;
 import com.wimoor.ozon.ops.service.IOzonOpsService;
+import com.wimoor.ozon.posting.mapper.OzonPostingMapper;
+import com.wimoor.ozon.posting.pojo.entity.OzonPosting;
 import com.wimoor.ozon.seller.mapper.OzonDeliveryMethodMapper;
 import com.wimoor.ozon.seller.mapper.OzonShopConfigMapper;
 import com.wimoor.ozon.seller.mapper.OzonWarehouseMapper;
@@ -38,6 +40,7 @@ public class OzonSellerSettingsServiceImpl implements IOzonSellerSettingsService
     private final OzonWarehouseMapper warehouseMapper;
     private final OzonShopConfigMapper shopConfigMapper;
     private final OzonDeliveryMethodMapper deliveryMethodMapper;
+    private OzonPostingMapper postingMapper;
     private IOzonOpsService opsService = new IOzonOpsService() {
     };
 
@@ -68,6 +71,11 @@ public class OzonSellerSettingsServiceImpl implements IOzonSellerSettingsService
         if (opsService != null) {
             this.opsService = opsService;
         }
+    }
+
+    @Autowired(required = false)
+    public void setPostingMapper(OzonPostingMapper postingMapper) {
+        this.postingMapper = postingMapper;
     }
 
     @Override
@@ -146,6 +154,47 @@ public class OzonSellerSettingsServiceImpl implements IOzonSellerSettingsService
             recordOperationAudit(auth, user, method, payload, "FAILED", ex.getMessage());
             throw ex;
         }
+    }
+
+    @Override
+    public OzonDeliveryMethod setDefaultDeliveryMethod(UserInfo user, String authId, String methodId) {
+        OzonAuth auth = authAccessService.requireOwnedAuth(user, authId);
+        OzonDeliveryMethod method = requireOwnedMethod(auth, methodId);
+        deliveryMethodMapper.clearDefaultByAuthId(auth.getId());
+        method.setDefaultMethod(Boolean.TRUE);
+        method.setEnabled(Boolean.TRUE);
+        method.setUpdateTime(new Date());
+        deliveryMethodMapper.updateById(method);
+        recordOperationAudit(auth, user, method, JSON.toJSONString(method), "SUCCESS", "default updated");
+        return method;
+    }
+
+    @Override
+    public void deleteDeliveryMethod(UserInfo user, String authId, String methodId) {
+        OzonAuth auth = authAccessService.requireOwnedAuth(user, authId);
+        OzonDeliveryMethod method = requireOwnedMethod(auth, methodId);
+        if (Boolean.TRUE.equals(method.getDefaultMethod())) {
+            throw new IllegalArgumentException("默认配送方式不能删除");
+        }
+        if (postingMapper == null) {
+            throw new IllegalStateException("Posting关联校验组件未就绪");
+        }
+        Long referenceCount = postingMapper.selectCount(new QueryWrapper<OzonPosting>()
+                .eq("auth_id", auth.getId())
+                .eq("delivery_method_id", method.getId()));
+        if (referenceCount != null && referenceCount > 0) {
+            throw new IllegalArgumentException("配送方式已被Posting引用，不能删除");
+        }
+        deliveryMethodMapper.deleteById(method.getId());
+        recordOperationAudit(auth, user, method, JSON.toJSONString(method), "SUCCESS", "deleted");
+    }
+
+    private OzonDeliveryMethod requireOwnedMethod(OzonAuth auth, String methodId) {
+        OzonDeliveryMethod method = deliveryMethodMapper.selectById(requireText(methodId, "methodId不能为空"));
+        if (method == null || !StrUtil.equals(method.getAuthId(), auth.getId())) {
+            throw new IllegalArgumentException("配送方式不存在或无权操作");
+        }
+        return method;
     }
 
     private OzonDeliveryMethod loadOrCreateMethod(OzonAuth auth, OzonDeliveryMethodSaveCommand command, String methodCode) {

@@ -2,8 +2,11 @@ package com.wimoor.ozon.ops.service.impl;
 
 import java.util.Collections;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
@@ -19,6 +22,7 @@ import com.wimoor.ozon.ops.pojo.dto.OzonOperationAuditQuery;
 import com.wimoor.ozon.ops.pojo.dto.OzonOperationAuditRecordCommand;
 import com.wimoor.ozon.ops.pojo.entity.OzonApiLog;
 import com.wimoor.ozon.ops.pojo.entity.OzonOperationAudit;
+import com.wimoor.ozon.ops.pojo.vo.OzonOpsDashboardView;
 import com.wimoor.ozon.ops.pojo.vo.OzonOpsSummaryView;
 import com.wimoor.ozon.ops.service.IOzonOpsService;
 
@@ -141,6 +145,107 @@ public class OzonOpsServiceImpl implements IOzonOpsService {
         view.setOperationAuditTotal(auditTotal);
         view.setOperationAuditFailed(auditFailed);
         return view;
+    }
+
+    @Override
+    public OzonOpsDashboardView dashboard(UserInfo user, String authId) {
+        OzonAuth auth = authAccessService.requireOwnedAuth(user, authId);
+        OzonOpsDashboardView view = new OzonOpsDashboardView();
+        List<OzonApiLog> apiLogs = safeApiLogs(apiLogMapper.selectList(new QueryWrapper<OzonApiLog>()
+                .eq("auth_id", auth.getId())
+                .orderByDesc("create_time")
+                .last("limit 200")));
+        List<OzonOperationAudit> audits = safeAudits(operationAuditMapper.selectList(new QueryWrapper<OzonOperationAudit>()
+                .eq("auth_id", auth.getId())
+                .orderByDesc("create_time")
+                .last("limit 200")));
+        long apiTotal = apiLogs.size();
+        long apiFailed = apiLogs.stream().filter(item -> FAILED.equals(item.getStatus())).count();
+        long auditFailed = audits.stream().filter(item -> FAILED.equals(item.getResultStatus())).count();
+        OzonOpsDashboardView.Metrics metrics = view.getMetrics();
+        metrics.setApiTotalCalls(apiTotal);
+        metrics.setApiFailedCalls(apiFailed);
+        metrics.setApiSuccessRate(rate(apiTotal - apiFailed, apiTotal));
+        metrics.setAvgResponseTime(avgDuration(apiLogs));
+        metrics.setErrorRate(rate(apiFailed, apiTotal));
+        metrics.setOperationAuditTotal(audits.size());
+        metrics.setOperationAuditFailed(auditFailed);
+        view.getHealth().setApplication("UP");
+        view.getHealth().setDatabase("UP");
+        view.getHealth().setOzonApi(apiFailed > 0 ? "DEGRADED" : "UP");
+        view.setModuleStats(moduleStats(apiLogs));
+        view.setAuditStats(auditStats(audits));
+        view.setRecentErrors(recentErrors(apiLogs));
+        return view;
+    }
+
+    private List<OzonOpsDashboardView.ModuleStat> moduleStats(List<OzonApiLog> rows) {
+        Map<String, List<OzonApiLog>> grouped = rows.stream()
+                .collect(Collectors.groupingBy(item -> StrUtil.blankToDefault(item.getApiGroup(), "UNKNOWN"), LinkedHashMap::new, Collectors.toList()));
+        return grouped.entrySet().stream().map(entry -> {
+            long calls = entry.getValue().size();
+            long failures = entry.getValue().stream().filter(item -> FAILED.equals(item.getStatus())).count();
+            OzonOpsDashboardView.ModuleStat stat = new OzonOpsDashboardView.ModuleStat();
+            stat.setModule(entry.getKey());
+            stat.setCalls(calls);
+            stat.setFailures(failures);
+            stat.setSuccessRate(rate(calls - failures, calls));
+            stat.setAvgDuration(avgDuration(entry.getValue()));
+            return stat;
+        }).collect(Collectors.toList());
+    }
+
+    private List<OzonOpsDashboardView.AuditStat> auditStats(List<OzonOperationAudit> rows) {
+        Map<String, List<OzonOperationAudit>> grouped = rows.stream()
+                .collect(Collectors.groupingBy(item -> StrUtil.blankToDefault(item.getOperationType(), "UNKNOWN"), LinkedHashMap::new, Collectors.toList()));
+        return grouped.entrySet().stream().map(entry -> {
+            long count = entry.getValue().size();
+            long failures = entry.getValue().stream().filter(item -> FAILED.equals(item.getResultStatus())).count();
+            OzonOpsDashboardView.AuditStat stat = new OzonOpsDashboardView.AuditStat();
+            stat.setOperationType(entry.getKey());
+            stat.setCount(count);
+            stat.setFailures(failures);
+            stat.setSuccessRate(rate(count - failures, count));
+            return stat;
+        }).collect(Collectors.toList());
+    }
+
+    private List<OzonOpsDashboardView.RecentError> recentErrors(List<OzonApiLog> rows) {
+        return rows.stream()
+                .filter(item -> FAILED.equals(item.getStatus()))
+                .limit(20)
+                .map(item -> {
+                    OzonOpsDashboardView.RecentError error = new OzonOpsDashboardView.RecentError();
+                    error.setModule(item.getApiGroup());
+                    error.setOperation(item.getActionName());
+                    error.setErrorMessage(item.getErrorMessage());
+                    error.setOccurredAt(item.getCreateTime());
+                    return error;
+                })
+                .collect(Collectors.toList());
+    }
+
+    private long avgDuration(List<OzonApiLog> rows) {
+        return Math.round(rows.stream()
+                .filter(item -> item.getDurationMs() != null)
+                .mapToLong(OzonApiLog::getDurationMs)
+                .average()
+                .orElse(0D));
+    }
+
+    private double rate(long numerator, long denominator) {
+        if (denominator <= 0) {
+            return 0D;
+        }
+        return Math.round((numerator * 10000D / denominator)) / 100D;
+    }
+
+    private List<OzonApiLog> safeApiLogs(List<OzonApiLog> rows) {
+        return rows == null ? Collections.emptyList() : rows;
+    }
+
+    private List<OzonOperationAudit> safeAudits(List<OzonOperationAudit> rows) {
+        return rows == null ? Collections.emptyList() : rows;
     }
 
     private String trim(String value) {

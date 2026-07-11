@@ -69,12 +69,17 @@
     <SyncPanel
       :sync-enabled="isEnabled('adsSync')"
       :sync-reason="reason('adsSync')"
+      :auth-id="form.authId"
       :loading="syncing"
+      :loading-campaigns="syncingCampaigns"
+      :loading-reports="syncingReports"
       :form="syncForm"
       :account-options="accountData"
       :campaign-options="campaignData"
       :results="syncResults"
       @submit="submitSyncIntent"
+      @sync-campaigns="handleSyncCampaigns"
+      @sync-reports="handleSyncReports"
     />
 
     <el-row :gutter="16" class="summary-row">
@@ -178,6 +183,8 @@ const importing = ref(false);
 const campaignLoading = ref(false);
 const reportLoading = ref(false);
 const syncing = ref(false);
+const syncingCampaigns = ref(false);
+const syncingReports = ref(false);
 const authOptions = ref([]);
 const accountData = ref([]);
 const campaignData = ref([]);
@@ -378,6 +385,50 @@ function submitSyncIntent() {
     loadSyncResults();
   }).finally(() => {
     syncing.value = false;
+  });
+}
+
+function handleSyncCampaigns() {
+  if (!isEnabled('adsSync')) {
+    ElMessage.warning(reason('adsSync'));
+    return;
+  }
+  if (!form.authId) {
+    ElMessage.error('请先选择授权店铺');
+    return;
+  }
+  syncingCampaigns.value = true;
+  adsApi.syncCampaigns(form.authId).then(res => {
+    ElMessage.success(`成功同步 ${res.data || 0} 个广告活动`);
+    loadCampaigns();
+  }).catch(err => {
+    ElMessage.error(err.message || '同步失败');
+  }).finally(() => {
+    syncingCampaigns.value = false;
+  });
+}
+
+function handleSyncReports() {
+  if (!isEnabled('adsSync')) {
+    ElMessage.warning(reason('adsSync'));
+    return;
+  }
+  if (!form.authId) {
+    ElMessage.error('请先选择授权店铺');
+    return;
+  }
+  if (!syncForm.dateRange || syncForm.dateRange.length !== 2) {
+    ElMessage.error('请选择日期范围');
+    return;
+  }
+  syncingReports.value = true;
+  adsApi.syncReports(form.authId, syncForm.dateRange[0], syncForm.dateRange[1]).then(res => {
+    ElMessage.success(`成功同步 ${res.data || 0} 条广告报告`);
+    loadReports();
+  }).catch(err => {
+    ElMessage.error(err.message || '同步失败');
+  }).finally(() => {
+    syncingReports.value = false;
   });
 }
 

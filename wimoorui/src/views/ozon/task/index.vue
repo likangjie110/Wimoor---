@@ -14,28 +14,28 @@
             <h3>Ozon 任务中心</h3>
             <p class="font-extraSmall">查看 Ozon 同步任务的最近状态，支持按授权、任务类型和状态快速筛选。</p>
           </div>
-          <el-button :disabled="!isEnabled('task')" @click="loadTasks">刷新任务</el-button>
+          <el-button :disabled="!isEnabled('task')" data-testid="btn-refresh" @click="loadTasks">刷新任务</el-button>
         </div>
       </template>
 
       <el-row :gutter="16">
         <el-col :span="8">
           <el-form-item label="授权店铺">
-            <el-select v-model="query.authId" placeholder="请选择 Ozon 授权" style="width: 100%" @change="loadTasks">
+            <el-select v-model="query.authId" placeholder="请选择 Ozon 授权" style="width: 100%" data-testid="filter-auth" @change="loadTasks">
               <el-option v-for="item in authOptions" :key="item.id" :label="item.name" :value="item.id" />
             </el-select>
           </el-form-item>
         </el-col>
         <el-col :span="8">
           <el-form-item label="任务类型">
-            <el-select v-model="query.jobType" clearable placeholder="全部" style="width: 100%" @change="loadTasks">
+            <el-select v-model="query.jobType" clearable placeholder="全部" style="width: 100%" data-testid="filter-job-type" @change="loadTasks">
               <el-option v-for="item in jobTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
             </el-select>
           </el-form-item>
         </el-col>
         <el-col :span="8">
           <el-form-item label="任务状态">
-            <el-select v-model="query.status" clearable placeholder="全部" style="width: 100%" @change="loadTasks">
+            <el-select v-model="query.status" clearable placeholder="全部" style="width: 100%" data-testid="filter-status" @change="loadTasks">
               <el-option label="PENDING" value="PENDING" />
               <el-option label="RUNNING" value="RUNNING" />
               <el-option label="DONE" value="DONE" />
@@ -46,62 +46,62 @@
       </el-row>
     </el-card>
 
-    <el-row :gutter="16" class="summary-row">
+    <el-row :gutter="16" class="summary-row" data-testid="operation-summary">
       <el-col :span="6">
         <el-card shadow="never" class="summary-card">
           <div class="summary-label">最近执行</div>
-          <div class="summary-value">{{ summary.lastRunTime ? dateFormat(summary.lastRunTime) : '-' }}</div>
+          <div class="summary-value" data-testid="last-run-time">{{ summary.lastRunTime ? dateFormat(summary.lastRunTime) : '-' }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card shadow="never" class="summary-card">
           <div class="summary-label">待处理</div>
-          <div class="summary-value">{{ summary.backlog }}</div>
+          <div class="summary-value" data-testid="total-tasks">{{ summary.backlog }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card shadow="never" class="summary-card">
           <div class="summary-label">平均耗时</div>
-          <div class="summary-value">{{ summary.averageLatencyText }}</div>
+          <div class="summary-value" data-testid="avg-latency">{{ summary.averageLatencyText }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card shadow="never" class="summary-card">
           <div class="summary-label">失败数</div>
-          <div class="summary-value">{{ summary.failureCount }}</div>
+          <div class="summary-value" data-testid="failure-count">{{ summary.failureCount }}</div>
         </el-card>
       </el-col>
     </el-row>
 
-    <el-row :gutter="16" class="summary-row">
+    <el-row :gutter="16" class="summary-row" data-testid="ops-summary">
       <el-col :span="6">
         <el-card shadow="never" class="summary-card">
           <div class="summary-label">API 调用总数</div>
-          <div class="summary-value">{{ opsSummary.apiLogTotal }}</div>
+          <div class="summary-value" data-testid="api-total">{{ opsSummary.apiLogTotal }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card shadow="never" class="summary-card">
           <div class="summary-label">API 失败数</div>
-          <div class="summary-value">{{ opsSummary.apiLogFailed }}</div>
+          <div class="summary-value" data-testid="api-failed">{{ opsSummary.apiLogFailed }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card shadow="never" class="summary-card">
           <div class="summary-label">人工操作总数</div>
-          <div class="summary-value">{{ opsSummary.operationAuditTotal }}</div>
+          <div class="summary-value" data-testid="ops-total">{{ opsSummary.operationAuditTotal }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card shadow="never" class="summary-card">
           <div class="summary-label">人工失败数</div>
-          <div class="summary-value">{{ opsSummary.operationAuditFailed }}</div>
+          <div class="summary-value" data-testid="ops-failed">{{ opsSummary.operationAuditFailed }}</div>
         </el-card>
       </el-col>
     </el-row>
 
     <el-card shadow="never">
-      <el-table v-loading="loading" :data="tableData" border>
+      <el-table v-loading="loading" :data="tableData" border data-testid="task-list">
         <el-table-column prop="jobType" label="任务类型" min-width="160" />
         <el-table-column prop="status" label="状态" width="120" />
         <el-table-column label="业务摘要" min-width="220" show-overflow-tooltip>

@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson2.JSONObject;
 import com.wimoor.common.user.UserInfo;
 import com.wimoor.ozon.auth.mapper.OzonAuthMapper;
 import com.wimoor.ozon.auth.pojo.dto.OzonAuthBindCommand;
@@ -18,7 +18,9 @@ import com.wimoor.ozon.auth.pojo.entity.OzonAuth;
 import com.wimoor.ozon.auth.pojo.vo.OzonAuthView;
 import com.wimoor.ozon.auth.service.IOzonAuthService;
 import com.wimoor.ozon.client.OzonConnectionStatus;
+import com.wimoor.ozon.ops.annotation.OzonAudit;
 import com.wimoor.ozon.client.OzonSellerApiClient;
+import com.wimoor.ozon.config.OzonFeatureGate;
 import com.wimoor.ozon.ops.pojo.dto.OzonApiLogRecordCommand;
 import com.wimoor.ozon.ops.pojo.dto.OzonOperationAuditRecordCommand;
 import com.wimoor.ozon.ops.service.IOzonOpsService;
@@ -54,6 +56,7 @@ public class OzonAuthServiceImpl implements IOzonAuthService {
     private final IOzonWarehouseSyncService warehouseSyncService;
     private IOzonOpsService opsService = new IOzonOpsService() {
     };
+    private OzonFeatureGate featureGate;
 
     @Autowired
     public OzonAuthServiceImpl(
@@ -89,7 +92,13 @@ public class OzonAuthServiceImpl implements IOzonAuthService {
         }
     }
 
+    @Autowired(required = false)
+    public void setFeatureGate(OzonFeatureGate featureGate) {
+        this.featureGate = featureGate;
+    }
+
     @Override
+    @OzonAudit(operationType = "CREATE", objectType = "OZON_AUTH", description = "创建 OZON 授权")
     public OzonAuth bindAuth(UserInfo user, OzonAuthBindCommand command) {
         String shopId = requireShopId(user);
         String clientId = requireText(command.getClientId(), "Client ID不能为空");
@@ -218,6 +227,7 @@ public class OzonAuthServiceImpl implements IOzonAuthService {
     }
 
     @Override
+    @OzonAudit(operationType = "DISABLE", objectType = "OZON_AUTH", description = "禁用 OZON 授权")
     public void disableAuth(UserInfo user, String authId) {
         OzonAuth auth = validateOwnedAuth(user, authId);
         JSONObject payload = new JSONObject();
@@ -257,6 +267,7 @@ public class OzonAuthServiceImpl implements IOzonAuthService {
     }
 
     @Override
+    @OzonAudit(operationType = "UPDATE", objectType = "OZON_AUTH", description = "轮换 OZON API Key")
     public OzonAuth rotateKey(UserInfo user, OzonRotateKeyCommand command) {
         String apiKey = requireText(command.getApiKey(), "API Key不能为空");
         OzonAuth auth = validateOwnedAuth(user, command.getAuthId());
@@ -344,9 +355,40 @@ public class OzonAuthServiceImpl implements IOzonAuthService {
         view.setClientId(auth.getClientId());
         view.setApiKeyMasked(maskFingerprint(auth.getApiKeyFingerprint()));
         view.setStatus(Boolean.TRUE.equals(auth.getDisabled()) ? DISABLED : auth.getStatus());
-        view.setLastSyncStatus(auth.getLastSyncStatus());
         view.setLastSyncMessage(auth.getLastSyncMessage());
         view.setLastSyncTime(auth.getLastSyncTime());
+
+        // 添加仓库统计信息
+        if (warehouseSyncService != null) {
+            try {
+                int warehouseCount = warehouseSyncService.countByAuth(auth.getId());
+                view.setWarehouseCount(warehouseCount);
+
+                String defaultWarehouse = warehouseSyncService.getDefaultWarehouseName(auth.getId());
+                view.setDefaultWarehouse(defaultWarehouse);
+            } catch (Exception e) {
+                // 忽略统计错误，不影响主流程
+                view.setWarehouseCount(0);
+                view.setDefaultWarehouse(null);
+            }
+        } else {
+            view.setWarehouseCount(0);
+            view.setDefaultWarehouse(null);
+        }
+
+        // 添加功能开关摘要
+        if (featureGate != null) {
+            try {
+                int writeGatesEnabled = featureGate.countEnabledWrites();
+                view.setWriteGatesEnabled(writeGatesEnabled);
+            } catch (Exception e) {
+                // 忽略统计错误
+                view.setWriteGatesEnabled(0);
+            }
+        } else {
+            view.setWriteGatesEnabled(0);
+        }
+
         return view;
     }
 

@@ -47,4 +47,12 @@ public class OzonListingAttribute {
 
     @TableField("update_time")
     private Date updateTime;
+
+    public String getAttributeValue() {
+        return attributeValueJson;
+    }
+
+    public void setAttributeValue(String attributeValue) {
+        this.attributeValueJson = attributeValue;
+    }
 }

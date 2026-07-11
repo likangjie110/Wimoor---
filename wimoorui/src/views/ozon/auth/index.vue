@@ -1,5 +1,5 @@
 <template>
-  <div class="main-sty">
+  <div class="main-sty" data-testid="auth-workspace">
     <OzonFeatureNotice
       :item="features.auth"
       title="Ozon 授权功能当前已关闭"
@@ -8,7 +8,7 @@
     <OzonFeatureSummaryBar :items="summaryFeatureItems" />
 
     <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-      <el-tab-pane label="授权列表" name="auth">
+      <el-tab-pane label="授权列表" name="auth" data-testid="tab-auth-list">
         <el-card shadow="never" class="bind-card">
           <template #header>
             <div class="card-title">
@@ -17,8 +17,8 @@
                 <p class="font-extraSmall">录入 Client ID 与 API Key 后保存授权，保存后可执行连接测试与仓库初始化。</p>
               </div>
               <el-space>
-                <el-button :disabled="!isEnabled('auth')" @click="showPreBindTip">连接测试</el-button>
-                <el-button type="primary" :loading="submitting" :disabled="!isEnabled('auth')" @click="saveAuth">保存授权</el-button>
+                <el-button :disabled="!isEnabled('auth')" data-testid="btn-test" @click="showPreBindTip">连接测试</el-button>
+                <el-button type="primary" :loading="submitting" :disabled="!isEnabled('auth')" data-testid="btn-save" @click="saveAuth">保存授权</el-button>
               </el-space>
             </div>
           </template>
@@ -51,13 +51,14 @@
                 <span>授权列表</span>
                 <div v-if="activeAuthName" class="font-extraSmall current-auth">当前工作授权：{{ activeAuthName }}</div>
               </div>
-              <el-button :disabled="!isEnabled('auth')" @click="loadList">刷新列表</el-button>
+              <el-button :disabled="!isEnabled('auth')" data-testid="btn-refresh" @click="loadList">刷新列表</el-button>
             </div>
           </template>
           <el-table
             v-loading="loading"
             :data="tableData"
             border
+            data-testid="auth-list"
             highlight-current-row
             row-key="id"
             :current-row-key="activeAuthId"
@@ -66,7 +67,28 @@
             <el-table-column prop="name" label="授权名称" min-width="180" />
             <el-table-column prop="clientId" label="Client ID" min-width="140" />
             <el-table-column prop="apiKeyMasked" label="密钥摘要" min-width="120" />
-            <el-table-column prop="status" label="状态" width="110" />
+            <el-table-column prop="status" label="状态" width="110">
+              <template #default="scope">
+                <el-tag :type="scope.row.status === 'ACTIVE' ? 'success' : 'info'" size="small">
+                  {{ scope.row.status }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="仓库" width="100" align="center">
+              <template #default="scope">
+                <el-tag type="info" size="small">{{ scope.row.warehouseCount || 0 }} 个</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="defaultWarehouse" label="默认仓" min-width="140" show-overflow-tooltip>
+              <template #default="scope">
+                {{ scope.row.defaultWarehouse || '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column label="写操作" width="100" align="center">
+              <template #default="scope">
+                <el-tag type="success" size="small">{{ scope.row.writeGatesEnabled || 0 }}/6</el-tag>
+              </template>
+            </el-table-column>
             <el-table-column label="最近同步" min-width="180">
               <template #default="scope">
                 {{ scope.row.lastSyncTime ? dateFormat(scope.row.lastSyncTime) : '-' }}
@@ -86,7 +108,7 @@
         </el-card>
       </el-tab-pane>
 
-      <el-tab-pane label="仓库同步" name="warehouse">
+      <el-tab-pane label="仓库同步" name="warehouse" data-testid="tab-warehouse-stats">
         <WarehousePanel
           :auth-options="tableData"
           :auth-id="activeAuthId"
@@ -99,7 +121,7 @@
         />
       </el-tab-pane>
 
-      <el-tab-pane label="配送方式" name="delivery">
+      <el-tab-pane label="配送方式" name="delivery" data-testid="tab-delivery-method">
         <DeliveryMethodPanel
           :auth-options="tableData"
           :auth-id="activeAuthId"
@@ -115,7 +137,7 @@
         />
       </el-tab-pane>
 
-      <el-tab-pane label="初始化任务" name="initTask">
+      <el-tab-pane label="初始化任务" name="initTask" data-testid="tab-init-task">
         <InitTaskPanel
           :auth-options="tableData"
           :auth-id="activeAuthId"

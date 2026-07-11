@@ -29,11 +29,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 8
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '8'
+          java-version: '21'
           cache: maven
 
       - name: Run Ozon backend verification
@@ -44,6 +44,13 @@ jobs:
           -am
           -Dtest=OzonListingDraftServiceTests,OzonProductMetadataServiceTests,OzonProductPreviewServiceTests,OzonProductPublishServiceTests,OzonProductControllerFeatureTests,OzonAuthServiceTests,OzonWarehouseSyncServiceTests,OzonSellerSettingsServiceTests,OzonPriceSyncServiceTests,OzonStockSyncServiceTests,OzonPostingSyncServiceTests,OzonShipmentServiceTests,OzonAfterSaleServiceTests,OzonFinanceImportTests,OzonChatSyncTests,OzonAdsReportTests,OzonOpsServiceTests,OzonControllerFeatureGateTests,OzonSmokeWorkflowTests
           test
+
+      - name: Run Ozon static checks
+        working-directory: wimoorui
+        run: |
+          node scripts/check_ozon_entry.mjs
+          node scripts/check_ozon_route_smoke.mjs
+          node scripts/check_ozon_product_publish_entry.mjs
 
       - name: Upload backend verification reports
         if: always()
@@ -61,7 +68,7 @@ jobs:
           {
             echo "## Ozon Backend Verification"
             echo
-            echo "- Java: 8"
+            echo "- Java: 21"
             echo "- Module: wimoor-ozon/ozon-boot"
             echo "- Artifact: ozon-backend-surefire-reports"
             echo "- Portal: docs/superpowers/verification/2026-04-11-ozon-verification-portal.md"
@@ -151,3 +158,39 @@ jobs:
             echo "- Portal: docs/superpowers/verification/2026-04-11-ozon-verification-portal.md"
             echo "- Post-Run Checklist: docs/superpowers/verification/2026-04-12-ozon-ci-postrun-checklist.md"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  ozon-contract:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      OZON_CONTRACT_CLIENT_ID: ${{ secrets.OZON_CONTRACT_CLIENT_ID }}
+      OZON_CONTRACT_API_KEY: ${{ secrets.OZON_CONTRACT_API_KEY }}
+      OZON_CONTRACT_AUTH_ID: ${{ secrets.OZON_CONTRACT_AUTH_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Verify contract credentials are explicit
+        run: |
+          test -n "$OZON_CONTRACT_CLIENT_ID"
+          test -n "$OZON_CONTRACT_API_KEY"
+          test -n "$OZON_CONTRACT_AUTH_ID"
+
+      - name: Run manual Ozon contract profile
+        run: >
+          mvn
+          -pl wimoor-ozon/ozon-boot
+          -am
+          -P ozon-contract
+          -Dspring.profiles.active=ozon-contract
+          -Dtest='*ContractTests'
+          '-Dsurefire.failIfNoSpecifiedTests=false'
+          test

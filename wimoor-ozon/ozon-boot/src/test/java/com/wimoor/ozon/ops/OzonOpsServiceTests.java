@@ -115,8 +115,8 @@ class OzonOpsServiceTests {
     void summaryAggregatesApiAndAuditCounters() {
         OzonAuth auth = buildAuth();
         when(authAccessService.requireOwnedAuth(buildUser(), "auth-1")).thenReturn(auth);
-        when(apiLogMapper.selectCount(any())).thenReturn(8, 3);
-        when(operationAuditMapper.selectCount(any())).thenReturn(5, 1);
+        when(apiLogMapper.selectCount(any())).thenReturn(8L, 3L);
+        when(operationAuditMapper.selectCount(any())).thenReturn(5L, 1L);
 
         OzonOpsSummaryView result = service.summary(buildUser(), "auth-1");
 

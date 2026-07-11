@@ -59,4 +59,12 @@ public class OzonAuth {
 
     @TableField(exist = false)
     private String apiKeyPlaintext;
+
+    public String getApiKey() {
+        return apiKeyPlaintext;
+    }
+
+    public void setApiKey(String apiKey) {
+        this.apiKeyPlaintext = apiKey;
+    }
 }

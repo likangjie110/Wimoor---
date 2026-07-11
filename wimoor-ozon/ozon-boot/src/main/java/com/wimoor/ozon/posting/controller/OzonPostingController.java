@@ -52,6 +52,26 @@ public class OzonPostingController {
         return execute(() -> postingService.getDetail(currentUser(), authId, postingId));
     }
 
+    @PostMapping("/assignDeliveryMethod")
+    public Result<Void> assignDeliveryMethod(
+            @RequestParam String authId,
+            @RequestParam String postingId,
+            @RequestParam String deliveryMethodId
+    ) {
+        return execute(() -> {
+            postingService.assignDeliveryMethod(currentUser(), authId, postingId, deliveryMethodId);
+            return null;
+        });
+    }
+
+    @GetMapping("/listByDeliveryMethod")
+    public Result<List<OzonPostingView>> listByDeliveryMethod(
+            @RequestParam String authId,
+            @RequestParam String deliveryMethodId
+    ) {
+        return execute(() -> postingService.getPostingsByDeliveryMethod(currentUser(), authId, deliveryMethodId));
+    }
+
     private UserInfo currentUser() {
         return UserInfoContext.get();
     }

@@ -1,5 +1,6 @@
 package com.wimoor.ozon.ads.service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import com.wimoor.common.user.UserInfo;
@@ -26,4 +27,8 @@ public interface IOzonAdsService {
     OzonAdsSummary summary(UserInfo user, OzonAdsReportQuery query);
 
     OzonAdsSyncIntentResult recordSyncIntent(UserInfo user, OzonAdsSyncCommand command);
+
+    List<OzonAdsCampaign> syncCampaignsFromApi(UserInfo user, String authId);
+
+    List<OzonAdsReport> syncReportsFromApi(UserInfo user, String authId, LocalDate startDate, LocalDate endDate);
 }

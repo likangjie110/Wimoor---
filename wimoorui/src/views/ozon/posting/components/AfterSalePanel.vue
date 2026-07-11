@@ -4,6 +4,9 @@
       <span>售后对象</span>
       <el-space>
         <el-button size="small" @click="$emit('refresh')">刷新</el-button>
+        <el-button size="small" type="success" :loading="syncing.packages" @click="handleSyncPackages">同步包裹</el-button>
+        <el-button size="small" type="success" :loading="syncing.returns" @click="handleSyncReturns">同步退货</el-button>
+        <el-button size="small" type="danger" :loading="cancelling" :disabled="disabled" @click="handleCancelPosting">取消订单</el-button>
         <el-button size="small" :disabled="disabled" @click="openPackageDialog()">新增包裹</el-button>
         <el-button size="small" :disabled="disabled" @click="openReturnDialog()">新增退货</el-button>
         <el-button size="small" :disabled="disabled" @click="openCancellationDialog()">新增取消</el-button>
@@ -131,15 +134,30 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue';
+import { reactive, ref } from 'vue';
 import { dateFormat } from '@/utils/index.js';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import {
+  cancelPostingWithApi,
+  syncPackagesFromApi,
+  syncReturnsFromApi
+} from '@/api/ozon/aftersale/aftersaleApi';
 
 const props = defineProps({
+  authId: { type: String, required: true },
+  postingId: { type: String, required: true },
   detail: { type: Object, default: null },
   disabled: { type: Boolean, default: false }
 });
 
 const emit = defineEmits(['refresh', 'save-package', 'save-return', 'save-cancellation']);
+
+const syncing = reactive({
+  packages: false,
+  returns: false
+});
+
+const cancelling = ref(false);
 
 const packageDialog = reactive({
   visible: false,
@@ -238,6 +256,79 @@ function emitCancellationSave() {
 
 function formatTime(value) {
   return value ? dateFormat(value) : '-';
+}
+
+// API 集成方法
+
+async function handleSyncPackages() {
+  syncing.packages = true;
+  try {
+    const res = await syncPackagesFromApi(props.authId, props.postingId);
+    if (res.code === 200) {
+      ElMessage.success('包裹同步成功');
+      emit('refresh');
+    } else {
+      ElMessage.error(res.message || '包裹同步失败');
+    }
+  } catch (error) {
+    ElMessage.error('包裹同步失败：' + error.message);
+  } finally {
+    syncing.packages = false;
+  }
+}
+
+async function handleSyncReturns() {
+  syncing.returns = true;
+  try {
+    const res = await syncReturnsFromApi(props.authId, props.postingId);
+    if (res.code === 200) {
+      ElMessage.success('退货同步成功');
+      emit('refresh');
+    } else {
+      ElMessage.error(res.message || '退货同步失败');
+    }
+  } catch (error) {
+    ElMessage.error('退货同步失败：' + error.message);
+  } finally {
+    syncing.returns = false;
+  }
+}
+
+async function handleCancelPosting() {
+  try {
+    const { value: reason } = await ElMessageBox.prompt('请输入取消原因', '取消订单', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      inputType: 'textarea',
+      inputValidator: (value) => {
+        if (!value || value.trim() === '') {
+          return '取消原因不能为空';
+        }
+        return true;
+      }
+    });
+
+    await ElMessageBox.confirm('确定要取消此订单吗？此操作不可撤销！', '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    });
+
+    cancelling.value = true;
+    const res = await cancelPostingWithApi(props.authId, props.postingId, reason);
+    if (res.code === 200) {
+      ElMessage.success('订单取消成功');
+      emit('refresh');
+    } else {
+      ElMessage.error(res.message || '订单取消失败');
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('订单取消失败：' + (error.message || error));
+    }
+  } finally {
+    cancelling.value = false;
+  }
 }
 </script>
 
